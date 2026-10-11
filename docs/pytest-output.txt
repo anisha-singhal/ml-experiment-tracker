@@ -1,0 +1,37 @@
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.2.1
+[notice] To update, run: pip install --upgrade pip
+============================= test session starts ==============================
+platform linux -- Python 3.12.15, pytest-8.3.4, pluggy-1.6.0 -- /usr/local/bin/python
+rootdir: /app
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.15.1
+collecting ... collected 17 items
+
+tests/test_api.py::TestMetaEndpoints::test_health_returns_healthy PASSED [  5%]
+tests/test_api.py::TestMetaEndpoints::test_ready_checks_the_database PASSED [ 11%]
+tests/test_api.py::TestMetaEndpoints::test_metrics_endpoint_is_prometheus_format PASSED [ 17%]
+tests/test_api.py::TestCreateExperiment::test_create_returns_201_and_the_created_row PASSED [ 23%]
+tests/test_api.py::TestCreateExperiment::test_create_rejects_an_out_of_range_learning_rate PASSED [ 29%]
+tests/test_api.py::TestCreateExperiment::test_create_rejects_an_unknown_status PASSED [ 35%]
+tests/test_api.py::TestListAndGetExperiments::test_list_is_empty_before_anything_is_created PASSED [ 41%]
+tests/test_api.py::TestListAndGetExperiments::test_list_returns_created_experiments PASSED [ 47%]
+tests/test_api.py::TestListAndGetExperiments::test_list_can_filter_by_status PASSED [ 52%]
+tests/test_api.py::TestListAndGetExperiments::test_get_unknown_id_returns_404 PASSED [ 58%]
+tests/test_api.py::TestUpdateExperiment::test_update_changes_only_the_supplied_fields PASSED [ 64%]
+tests/test_api.py::TestUpdateExperiment::test_update_unknown_id_returns_404 PASSED [ 70%]
+tests/test_api.py::TestDeleteExperiment::test_delete_removes_the_experiment PASSED [ 76%]
+tests/test_api.py::TestDeleteExperiment::test_delete_unknown_id_returns_404 PASSED [ 82%]
+tests/test_api.py::TestStats::test_stats_on_an_empty_database PASSED     [ 88%]
+tests/test_api.py::TestStats::test_stats_counts_by_status_and_aggregates_accuracy PASSED [ 94%]
+tests/test_api.py::TestStats::test_stats_route_is_not_shadowed_by_the_id_route PASSED [100%]
+
+=============================== warnings summary ===============================
+../usr/local/lib/python3.12/site-packages/starlette/testclient.py:40
+  /usr/local/lib/python3.12/site-packages/starlette/testclient.py:40: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = typing.Callable[[], typing.ContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 17 passed, 1 warning in 0.10s =========================
