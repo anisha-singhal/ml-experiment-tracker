@@ -210,6 +210,48 @@ Three decisions worth pointing at:
 - **`test` and `build-frontend` are a fan-in.** Both must pass before anything is built, so a
   failing test can never produce a published image.
 
+Published images (public, anyone can pull):
+
+```bash
+docker pull ghcr.io/anisha-singhal/ml-experiment-tracker-backend:<commit-sha>
+docker pull ghcr.io/anisha-singhal/ml-experiment-tracker-frontend:<commit-sha>
+```
+
+![Pipeline](docs/screenshots/github-actions-pipeline.png)
+
+### Live demo — change, pipeline, deployment
+
+The loop that shows the whole thing working end to end:
+
+```bash
+# 1. make a visible change
+vim frontend/src/main.jsx
+git commit -am "Rename the dashboard heading"
+git push
+
+# 2. watch the pipeline
+gh run watch
+
+# 3. take the SHA it published and roll the cluster onto it
+SHA=$(git rev-parse HEAD)
+helm upgrade --install mltracker ./helm/mltracker -n ml-tracker \
+  --set backend.image.repository=ghcr.io/anisha-singhal/ml-experiment-tracker-backend \
+  --set backend.image.tag=$SHA \
+  --set frontend.image.repository=ghcr.io/anisha-singhal/ml-experiment-tracker-frontend \
+  --set frontend.image.tag=$SHA \
+  --wait
+
+kubectl get pods -n ml-tracker -w     # old pods terminate, new ones come up
+```
+
+Refreshing http://localhost:8080 shows the change.
+
+The `deploy` job renders and lints the manifests rather than applying them,
+because a GitHub-hosted runner has no route to a cluster on this laptop. On EKS
+the same step becomes a `helm upgrade` once the runner can authenticate with
+`aws eks update-kubeconfig` — the chart and the image tags are already exactly
+what it would use.
+
 ## DevSecOps — what Trivy found
 
 Trivy scans both images for known CVEs in OS packages and language dependencies. The gate is:
@@ -267,6 +309,8 @@ that only ever shows 200s proves nothing about its error-rate panels.
 | What | Where |
 |---|---|
 | App in Docker Compose | [`docs/screenshots/app-dashboard.png`](docs/screenshots/app-dashboard.png) |
+| Green CI/CD pipeline | [`docs/screenshots/github-actions-pipeline.png`](docs/screenshots/github-actions-pipeline.png) |
+| GHCR package, SHA-tagged | [`docs/screenshots/ghcr-package.png`](docs/screenshots/ghcr-package.png) |
 | App through the Kubernetes Ingress | [`docs/screenshots/k8s-app-via-ingress.png`](docs/screenshots/k8s-app-via-ingress.png) |
 | Responsive layout at 430px | [`docs/screenshots/app-responsive-mobile.png`](docs/screenshots/app-responsive-mobile.png) |
 | Prometheus targets `UP` | [`docs/screenshots/prometheus-targets.png`](docs/screenshots/prometheus-targets.png) |
