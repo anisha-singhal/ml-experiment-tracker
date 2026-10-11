@@ -16,7 +16,15 @@ RUN npm run build
 # nginx-unprivileged rather than plain nginx: it already runs as uid 101 and
 # listens on 8080, so no capability is needed to bind the port and no
 # chown/chmod gymnastics are needed to let a non-root user write its pid file.
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
+
+# Patch the base image's OS packages. A pinned base tag is rebuilt far less
+# often than Alpine ships fixes, so without this the image carries dozens of
+# already-fixed CVEs in libssl, libexpat and libpng - which is exactly what the
+# CI security gate caught on the first scan of this image.
+# Needs root; the image drops back to uid 101 below.
+USER root
+RUN apk upgrade --no-cache
 
 # Only the built assets cross the stage boundary. node_modules, the Vite
 # toolchain and the source never reach the final image.

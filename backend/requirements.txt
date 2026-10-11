@@ -1,8 +1,12 @@
-fastapi==0.115.5
-uvicorn[standard]==0.32.1
-sqlalchemy==2.0.36
-alembic==1.14.0
-psycopg2-binary==2.9.11
-pydantic==2.10.3
-pydantic-settings==2.6.1
-prometheus-fastapi-instrumentator==7.0.0
+# Pinned exactly so a build is reproducible, and kept current because the CI
+# security gate fails on fixable HIGH/CRITICAL CVEs - an old fastapi pins an old
+# starlette, which is what failed the first scan of this image.
+fastapi==0.143.0
+uvicorn[standard]==0.54.0
+starlette==1.7.0
+sqlalchemy==2.1.4
+alembic==1.20.0
+psycopg2-binary==2.9.13
+pydantic==2.14.1
+pydantic-settings==2.15.0
+prometheus-fastapi-instrumentator==8.1.0

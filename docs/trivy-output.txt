@@ -1,0 +1,53 @@
+Trivy scan evidence — ML Experiment Tracker
+Scanner: trivy 0.58.1   Date: 2026-10-11 19:51 UTC
+
+The CI gate evaluates:  trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
+
+============================================================
+BEFORE — the gate failed, which is what it is for
+============================================================
+
+backend  (fastapi 0.115.5 pinned starlette 0.41.3):  3 fixable HIGH
+  HIGH  CVE-2025-62727  starlette 0.41.3 -> 0.49.1   DoS via Range header merging
+  HIGH  CVE-2026-48818  starlette 0.41.3 -> 1.1.0    SSRF / NTLM theft via UNC paths in StaticFiles
+  HIGH  CVE-2026-54283  starlette 0.41.3 -> 1.3.1    form() limits silently ignored, enabling DoS
+
+frontend (nginx-unprivileged:1.27-alpine, unpatched): 41 fixable (2 CRITICAL, 39 HIGH)
+  CRITICAL CVE-2026-31789  libcrypto3/libssl3 3.3.3-r0 -> 3.3.7-r0
+  HIGH     ... libexpat, libpng, libxml2, musl, nghttp2-libs, tiff, zlib, c-ares
+
+============================================================
+AFTER — dependencies upgraded and the base image patched
+============================================================
+
+$ trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 mltracker-backend:dev
+
+mltracker-backend:dev (debian 13.7)
+===================================
+Total: 0 (HIGH: 0, CRITICAL: 0)
+
+exit code: 0  (gate passes)
+
+$ trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 mltracker-frontend:dev
+
+mltracker-frontend:dev (alpine 3.23.4)
+======================================
+Total: 0 (HIGH: 0, CRITICAL: 0)
+
+exit code: 0  (gate passes)
+
+============================================================
+Full severity picture after the fix (nothing is hidden)
+============================================================
+
+--- mltracker-backend:dev ---
+  CRITICAL  total 0    of which fixable: 0
+  HIGH      total 44   of which fixable: 0
+  MEDIUM    total 63   of which fixable: 5
+  LOW       total 62   of which fixable: 1
+
+--- mltracker-frontend:dev ---
+  CRITICAL  total 0    of which fixable: 0
+  HIGH      total 0    of which fixable: 0
+  MEDIUM    total 0    of which fixable: 0
+  LOW       total 0    of which fixable: 0
