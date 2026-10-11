@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-tracker
+  labels:
+    name: ml-tracker
+    app.kubernetes.io/part-of: ml-experiment-tracker
