@@ -1,0 +1,68 @@
+# Full local stack: postgres -> migrations -> backend -> frontend.
+# One command brings it all up:  docker compose up --build
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mlt-db
+    environment:
+      POSTGRES_USER: mltracker
+      POSTGRES_PASSWORD: mltracker
+      POSTGRES_DB: mltracker
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      # pg_isready, not a sleep: the other services wait on this returning
+      # healthy, so startup order is a fact rather than a guess.
+      test: ["CMD-SHELL", "pg_isready -U mltracker -d mltracker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./backend
+    container_name: mlt-migrate
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql+psycopg2://mltracker:mltracker@db:5432/mltracker
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+    container_name: mlt-backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://mltracker:mltracker@db:5432/mltracker
+      ENVIRONMENT: docker-compose
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      # Start only after the schema exists. Plain `depends_on` would wait for the
+      # container to start, not for the migration to finish.
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: mlt-frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      # 3000 on the host, 8080 in the container - the unprivileged nginx port.
+      # Overridable (FRONTEND_PORT=3001 docker compose up) for the case where
+      # something else already holds 3000 on the host.
+      - "${FRONTEND_PORT:-3000}:8080"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
