@@ -1,0 +1,29 @@
+$ terraform init
+should now work.
+
+If you ever set or change modules or backend configuration for Terraform,
+rerun this command to reinitialize your working directory. If you forget, other
+commands will detect it and remind you to do so if necessary.
+
+$ terraform fmt -check -recursive
+exit=0
+
+$ terraform validate
+Success! The configuration is valid.
+
+
+$ terraform plan     # no AWS credentials configured
+
+Error: No valid credential sources found
+
+  with provider["registry.terraform.io/hashicorp/aws"],
+  on providers.tf line 1, in provider "aws":
+   1: provider "aws" {
+
+Please see https://registry.terraform.io/providers/hashicorp/aws
+for more information about providing credentials.
+
+Error: failed to refresh cached credentials, no EC2 IMDS role found,
+operation error ec2imds: GetMetadata, request canceled, context deadline
+exceeded
+

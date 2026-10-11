@@ -1,0 +1,28 @@
+# Copy to terraform.tfvars and adjust. terraform.tfvars is gitignored.
+#
+# No AWS credentials belong in this file, or in any file in this repository.
+# Terraform reads them from the environment or your AWS profile:
+#
+#   export AWS_PROFILE=your-profile
+#   # or
+#   export AWS_ACCESS_KEY_ID=...
+#   export AWS_SECRET_ACCESS_KEY=...
+
+aws_region   = "ap-south-1"
+project_name = "mltracker"
+environment  = "dev"
+
+vpc_cidr = "10.0.0.0/16"
+az_count = 2
+
+kubernetes_version  = "1.31"
+node_instance_types = ["t3.medium"]
+node_desired_size   = 2
+node_min_size       = 1
+node_max_size       = 4
+
+# NAT Gateways are the largest cost in this project (~$0.045/hour each, plus
+# data processing). One shared gateway keeps an evaluation cheap; production
+# uses one per AZ so a single AZ failure cannot cut off the others.
+enable_nat_gateway = true
+single_nat_gateway = true
