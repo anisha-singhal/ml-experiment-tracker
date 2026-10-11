@@ -10,6 +10,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_BASE: ${{ github.repository }}
+  TRIVY_VERSION: "0.75.0"
 
 jobs:
   # ---------------------------------------------------------------- test ----
@@ -97,37 +98,41 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.component }}
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
-      - name: Install Trivy
-        env:
-          TRIVY_VERSION: "0.58.1"
-        run: |
-          # The release tarball directly, rather than contrib/install.sh piped
-          # into sh: that script lives on the project's main branch, so it can
-          # change under us, and when it fails it exits 1 having already printed
-          # that it resolved the version - which says nothing about what broke.
-          curl -sSfL \
-            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
-            -o /tmp/trivy.tar.gz
-          sudo tar -xzf /tmp/trivy.tar.gz -C /usr/local/bin trivy
-          trivy --version
-
       - name: Trivy scan (report)
+        # Trivy runs from its own pinned image rather than being installed.
+        # Installing it needed either contrib/install.sh (served from the
+        # project's main branch, so it can change underneath a pinned workflow)
+        # or a release tarball URL, whose version tag has to exist on GitHub -
+        # v0.58.1 does not, which is what produced a 404 here. The container
+        # tag is the one thing that is actually pinned and reproducible, and it
+        # is identical to how the scan was run locally.
+        #
+        # The cache volume is shared with the gate step below so the ~60MB
+        # vulnerability database is downloaded once per job, not twice.
         run: |
-          trivy image --scanners vuln --no-progress \
-            --severity LOW,MEDIUM,HIGH,CRITICAL \
-            --format table \
-            ${{ matrix.component }}:${{ github.sha }}
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v trivy-cache:/root/.cache/ \
+            aquasec/trivy:${{ env.TRIVY_VERSION }} image \
+              --scanners vuln --no-progress \
+              --severity LOW,MEDIUM,HIGH,CRITICAL \
+              --format table \
+              ${{ matrix.component }}:${{ github.sha }}
 
       - name: Security gate - fail on fixable HIGH or CRITICAL
         run: |
           # --ignore-unfixed: a CVE with no released patch cannot be acted on by
           # this repository, so failing on it would block every build for reasons
           # outside our control. Fixable HIGH/CRITICAL findings DO fail the job.
-          trivy image --scanners vuln --no-progress \
-            --severity HIGH,CRITICAL \
-            --ignore-unfixed \
-            --exit-code 1 \
-            ${{ matrix.component }}:${{ github.sha }}
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v trivy-cache:/root/.cache/ \
+            aquasec/trivy:${{ env.TRIVY_VERSION }} image \
+              --scanners vuln --no-progress \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --exit-code 1 \
+              ${{ matrix.component }}:${{ github.sha }}
 
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'

@@ -1,5 +1,5 @@
 Trivy scan evidence — ML Experiment Tracker
-Scanner: trivy 0.58.1   Date: 2026-10-11 19:51 UTC
+Scanner: trivy 0.75.0   Date: 2026-10-11 19:51 UTC
 
 The CI gate evaluates:  trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1
 
