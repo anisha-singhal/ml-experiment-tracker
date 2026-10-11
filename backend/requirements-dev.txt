@@ -1,0 +1,5 @@
+# Test-only dependencies. Installed by CI and by developers, never baked into
+# the runtime image.
+-r requirements.txt
+pytest==8.3.4
+httpx==0.28.1
