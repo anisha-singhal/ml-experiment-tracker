@@ -1,0 +1,20 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "mltracker.fullname" . }}-backend
+  labels:
+    {{- include "mltracker.labels" . | nindent 4 }}
+    # kube-prometheus-stack only adopts ServiceMonitors carrying its release
+    # label, unless serviceMonitorSelectorNilUsesHelmValues=false is set.
+    release: {{ .Values.serviceMonitor.releaseLabel | default "prometheus" }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "mltracker.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+{{- end }}

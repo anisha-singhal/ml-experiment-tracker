@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mltracker.fullname" . }}-backend
+  labels:
+    {{- include "mltracker.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  {{- if not .Values.hpa.enabled }}
+  # Omitted when the HPA is on, so Helm does not fight the autoscaler over the
+  # replica count on every upgrade.
+  replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mltracker.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      labels:
+        {{- include "mltracker.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        fsGroup: 10001
+      {{- if .Values.migration.enabled }}
+      initContainers:
+        # The schema is migrated here rather than in a Helm pre-install hook: a
+        # pre-install hook runs before every chart resource, including the
+        # PostgreSQL StatefulSet, so on a fresh install it has nothing to
+        # connect to and times out. As an initContainer the ordering is
+        # guaranteed per pod, and `alembic upgrade head` is idempotent, so
+        # concurrent replicas converge on the same revision.
+        - name: wait-for-postgres
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command:
+            - python
+            - -c
+            - |
+              import socket, sys, time
+              host, port = "{{ include "mltracker.postgresHost" . }}", 5432
+              for attempt in range(90):
+                  try:
+                      with socket.create_connection((host, port), timeout=2):
+                          print("postgres is accepting connections")
+                          sys.exit(0)
+                  except OSError:
+                      print(f"waiting for postgres ({attempt + 1}/90)", flush=True)
+                      time.sleep(2)
+              sys.exit("timed out waiting for postgres")
+        - name: migrate
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          command: ["alembic", "upgrade", "head"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mltracker.secretName" . }}
+                  key: DATABASE_URL
+      {{- end }}
+      containers:
+        - name: backend
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "mltracker.secretName" . }}
+                  key: DATABASE_URL
+            - name: ENVIRONMENT
+              value: kubernetes
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          livenessProbe:
+            {{- toYaml .Values.backend.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.backend.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.backend.startupProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            # readOnlyRootFilesystem is on, so anything that needs to write gets
+            # an explicit writable mount.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

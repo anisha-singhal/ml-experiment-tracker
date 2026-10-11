@@ -1,0 +1,26 @@
+# Local kind cluster: images built locally and loaded with `kind load`, so no
+# registry pull and never overwritten by a remote tag.
+backend:
+  image:
+    repository: mltracker-backend
+    tag: dev
+    pullPolicy: Never
+  replicaCount: 2
+frontend:
+  image:
+    repository: mltracker-frontend
+    tag: dev
+    pullPolicy: Never
+  replicaCount: 2
+ingress:
+  enabled: true
+  # localhost so the kind port mapping (hostPort 8080 -> ingress 80) is
+  # browsable without editing /etc/hosts. A real deployment uses a DNS name,
+  # as values-prod.yaml does.
+  host: localhost
+hpa:
+  enabled: false   # kind has no metrics-server by default
+postgres:
+  persistence:
+    enabled: true
+    size: 1Gi

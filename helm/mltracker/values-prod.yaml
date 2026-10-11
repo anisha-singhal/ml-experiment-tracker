@@ -1,0 +1,26 @@
+# Production shape. Image tags are supplied per deployment with
+# --set backend.image.tag=$GIT_SHA, never pinned here.
+backend:
+  replicaCount: 3
+  resources:
+    requests: { cpu: 250m, memory: 256Mi }
+    limits:   { cpu: "1",  memory: 1Gi }
+frontend:
+  replicaCount: 3
+hpa:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+postgres:
+  # A managed database (RDS) in production; the in-cluster StatefulSet is for
+  # local and demo use only.
+  enabled: false
+  existingSecret: mltracker-db-credentials
+ingress:
+  enabled: true
+  host: mltracker.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+serviceMonitor:
+  enabled: true

@@ -1,0 +1,95 @@
+# Defaults. Overridden per environment with -f values-dev.yaml / values-prod.yaml,
+# and per deployment with --set image tags from CI.
+
+nameOverride: ""
+fullnameOverride: ""
+
+backend:
+  image:
+    repository: ghcr.io/anisha-singhal/ml-experiment-tracker-backend
+    tag: main
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  # Probes split by purpose: /health never touches the database so a database
+  # blip cannot restart every pod, while /ready does so an unreachable database
+  # takes the pod out of the Service instead.
+  livenessProbe:
+    httpGet: { path: /health, port: http }
+    initialDelaySeconds: 10
+    periodSeconds: 15
+  readinessProbe:
+    httpGet: { path: /ready, port: http }
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    failureThreshold: 3
+  startupProbe:
+    httpGet: { path: /health, port: http }
+    failureThreshold: 30
+    periodSeconds: 2
+
+frontend:
+  image:
+    repository: ghcr.io/anisha-singhal/ml-experiment-tracker-frontend
+    tag: main
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+postgres:
+  enabled: true
+  image: postgres:16-alpine
+  database: mltracker
+  username: mltracker
+  # Development default only. In a real cluster this comes from an external
+  # Secret (existingSecret) or a secrets manager, never from values.yaml.
+  password: mltracker
+  existingSecret: ""
+  persistence:
+    enabled: true
+    size: 1Gi
+    storageClass: ""
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 512Mi }
+
+migration:
+  # Runs `alembic upgrade head` as a Job before the app rolls out.
+  enabled: true
+
+ingress:
+  enabled: true
+  className: nginx
+  host: mltracker.local
+  annotations: {}
+
+hpa:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
+
+serviceMonitor:
+  # Needs the Prometheus Operator CRDs. Off by default so `helm install` works
+  # on a cluster without them.
+  enabled: false
+  interval: 15s
