@@ -1,0 +1,30 @@
+$ kubectl exec -n ml-tracker deploy/mltracker-mltracker-backend -- \
+    python -c "import urllib.request; print(urllib.request.urlopen(\"http://127.0.0.1:8000/metrics\").read().decode()[:2000])"
+
+# HELP http_requests_total Total number of requests by method, status and handler.
+# TYPE http_requests_total counter
+http_requests_total{handler="/health",method="GET",status="2xx"} 40.0
+http_requests_total{handler="/ready",method="GET",status="2xx"} 58.0
+http_requests_total{handler="/api/experiments/stats",method="GET",status="2xx"} 1566.0
+http_requests_total{handler="/api/experiments",method="POST",status="2xx"} 2.0
+http_requests_total{handler="/api/experiments",method="GET",status="2xx"} 1534.0
+http_requests_total{handler="/metrics",method="GET",status="2xx"} 19.0
+http_requests_total{handler="/api/experiments/{experiment_id}",method="GET",status="4xx"} 1552.0
+http_requests_total{handler="/api/experiments",method="POST",status="4xx"} 1543.0
+# HELP http_requests_created Total number of requests by method, status and handler.
+# TYPE http_requests_created gauge
+# HELP http_request_size_bytes Content length of incoming requests by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
+# TYPE http_request_size_bytes summary
+# HELP http_request_size_bytes_created Content length of incoming requests by handler. Only value of header is respected. Otherwise ignored. No percentile calculated. 
+# TYPE http_request_size_bytes_created gauge
+# HELP http_request_duration_highr_seconds Latency with many buckets but no API specific labels. Made for more accurate percentile calculations. 
+# TYPE http_request_duration_highr_seconds histogram
+# HELP http_request_duration_highr_seconds_created Latency with many buckets but no API specific labels. Made for more accurate percentile calculations. 
+# TYPE http_request_duration_highr_seconds_created gauge
+# HELP http_request_duration_seconds Latency with only few buckets by handler. Made to be only used if aggregation by handler is important. 
+# TYPE http_request_duration_seconds histogram
+# HELP http_request_duration_seconds_created Latency with only few buckets by handler. Made to be only used if aggregation by handler is important. 
+# TYPE http_request_duration_seconds_created gauge
+
+$ curl -s http://localhost:8080/api/experiments/stats   # through the Ingress
+{"total":6,"queued":1,"running":1,"completed":3,"failed":1,"best_accuracy":0.9438,"average_accuracy":0.8964}

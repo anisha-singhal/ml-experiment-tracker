@@ -1,0 +1,65 @@
+# Values for kube-prometheus-stack on a local kind cluster.
+# Trimmed to fit a laptop: no Alertmanager, short retention, modest requests.
+
+fullnameOverride: prometheus
+
+alertmanager:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    retention: 2h
+    scrapeInterval: 15s
+    resources:
+      requests: { cpu: 100m, memory: 400Mi }
+      limits:   { cpu: "1",  memory: 1Gi }
+
+    # By default the operator only adopts ServiceMonitors carrying the Helm
+    # release label. Setting these to false makes it watch every namespace, so
+    # the application's own ServiceMonitor is picked up without having to
+    # hardcode the monitoring release name into the app chart.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    storageSpec: {}   # ephemeral; 2h retention does not warrant a PVC here
+
+grafana:
+  enabled: true
+  # Demo credentials for a local cluster only. A real deployment reads these
+  # from a Secret (grafana.admin.existingSecret) and never from a values file.
+  adminUser: admin
+  adminPassword: admin
+  service:
+    type: ClusterIP
+  defaultDashboardsEnabled: true
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits:   { cpu: 500m, memory: 512Mi }
+
+  # Mounts any ConfigMap labelled grafana_dashboard=1 as a dashboard, which is
+  # how the application dashboard below is provisioned as code rather than
+  # clicked together in the UI.
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+
+# Components that do not work or do not matter on kind.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus-node-exporter:
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+
+kube-state-metrics:
+  resources:
+    requests: { cpu: 20m, memory: 64Mi }
