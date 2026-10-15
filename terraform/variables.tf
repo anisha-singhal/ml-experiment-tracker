@@ -96,3 +96,27 @@ variable "single_nat_gateway" {
   type        = bool
   default     = true
 }
+
+variable "enable_eks" {
+  description = <<-DESC
+    Whether to create the EKS cluster and its node group.
+
+    Set to false when applying against LocalStack: its free edition answers
+    EKS calls with "API for service 'eks' not yet implemented or pro feature".
+    Every other resource here is supported, so the VPC still applies for real.
+  DESC
+  type        = bool
+  default     = true
+}
+
+variable "use_localstack" {
+  description = <<-DESC
+    Point the AWS provider at LocalStack on localhost:4566 instead of real AWS.
+
+    The same provider, the same resource definitions and the same signed API
+    calls - answered by a container rather than by AWS. Nothing is billed, and
+    plan/apply/destroy genuinely execute.
+  DESC
+  type        = bool
+  default     = false
+}

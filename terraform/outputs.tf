@@ -1,27 +1,27 @@
 output "cluster_name" {
   description = "EKS cluster name."
-  value       = aws_eks_cluster.main.name
+  value       = one(module.eks[*].cluster_name)
 }
 
 output "cluster_endpoint" {
   description = "Kubernetes API server endpoint."
-  value       = aws_eks_cluster.main.endpoint
+  value       = one(module.eks[*].cluster_endpoint)
 }
 
 output "cluster_version" {
   description = "Kubernetes version actually running, read back from the cluster."
-  value       = aws_eks_cluster.main.version
+  value       = one(module.eks[*].cluster_version)
 }
 
 output "cluster_certificate_authority_data" {
   description = "Base64 CA bundle for the API server."
-  value       = aws_eks_cluster.main.certificate_authority[0].data
+  value       = one(module.eks[*].cluster_certificate_authority_data)
   sensitive   = true
 }
 
 output "oidc_provider_arn" {
   description = "OIDC provider ARN, referenced by IRSA trust policies."
-  value       = aws_iam_openid_connect_provider.cluster.arn
+  value       = one(module.eks[*].oidc_provider_arn)
 }
 
 output "vpc_id" {
@@ -51,10 +51,10 @@ output "availability_zones" {
 
 output "node_group_name" {
   description = "Managed node group name."
-  value       = aws_eks_node_group.main.node_group_name
+  value       = one(module.eks[*].node_group_name)
 }
 
 output "configure_kubectl" {
   description = "Command to point kubectl at this cluster."
-  value       = "aws eks update-kubeconfig --region ${var.aws_region} --name ${aws_eks_cluster.main.name}"
+  value       = var.enable_eks ? "aws eks update-kubeconfig --region ${var.aws_region} --name ${local.name}" : "EKS disabled (enable_eks = false)"
 }

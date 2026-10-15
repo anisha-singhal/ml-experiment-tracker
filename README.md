@@ -177,10 +177,32 @@ kubectl port-forward -n monitoring svc/prometheus-grafana 3300:80
 Grafana at http://localhost:3300 (`admin` / `admin`), dashboard **ML Experiment Tracker —
 Application**.
 
-### AWS infrastructure
+### Infrastructure
 
-See [`terraform/README.md`](terraform/README.md) for the full walkthrough, cost breakdown and
-teardown order.
+One Terraform configuration targets two places:
+
+```bash
+# free - no AWS account, nothing billed. EKS is skipped (see below).
+docker run -d --name localstack-tf -p 4566:4566 \
+  -e SERVICES=ec2,iam,sts,logs,s3 localstack/localstack:3.8
+terraform -chdir=terraform init
+terraform -chdir=terraform apply -var-file=localstack.tfvars
+terraform -chdir=terraform destroy -var-file=localstack.tfvars
+
+# real AWS - needs credentials, creates the EKS cluster too
+export AWS_PROFILE=your-profile
+terraform -chdir=terraform apply
+```
+
+The VPC layer — 16 resources including two public subnets across two Availability Zones, a NAT
+Gateway and the route tables — has been applied, verified with the AWS CLI and destroyed
+against LocalStack. **The EKS cluster has not been created**: LocalStack's free edition answers
+EKS calls with `"API for service 'eks' not yet implemented or pro feature"`, and no AWS account
+is attached to this project. The EKS HCL is written, formatted and validated, and
+`var.enable_eks` switches it on for a real account.
+
+[`terraform/README.md`](terraform/README.md) has the full transcript, the cost breakdown and the
+teardown-order trap.
 
 ---
 
@@ -359,7 +381,7 @@ Kept because the debugging is the part worth reading.
 | M4 Docker | [`backend/Dockerfile`](backend/Dockerfile), [`frontend/Dockerfile`](frontend/Dockerfile), [`docker-compose.yml`](docker-compose.yml) |
 | M5 CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) |
 | M6 DevSecOps | Trivy gate in the workflow, [`docs/trivy-output.txt`](docs/trivy-output.txt) |
-| M7 Terraform | [`terraform/`](terraform/) |
+| M7 Terraform | [`terraform/`](terraform/), [`docs/terraform-output.txt`](docs/terraform-output.txt) |
 | M8 Kubernetes + Helm | [`k8s/`](k8s/), [`helm/mltracker/`](helm/mltracker/), [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
 | M9 Observability | [`monitoring/`](monitoring/), Grafana and Prometheus screenshots |
 | M10 Documentation | this file |
