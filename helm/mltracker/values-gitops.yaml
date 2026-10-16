@@ -26,10 +26,14 @@ ingress:
   # overrides this with a real DNS name, as values-prod.yaml does.
   host: localhost
 
-# kind ships no metrics-server, so an HPA here would sit permanently at
-# <unknown>/60%. Enabled in values-prod.yaml, where EKS provides metrics.
+# Needs metrics-server, which kind does not ship: install it first with
+# monitoring/metrics-server-values.yaml, or the HPA sits at <unknown>/70%.
+# Argo CD ignores /spec/replicas on the backend so it never fights the HPA.
 hpa:
-  enabled: false
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 70
 
 postgres:
   persistence:

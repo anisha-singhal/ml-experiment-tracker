@@ -1,0 +1,10 @@
+# metrics-server feeds CPU and memory usage to the HPA. EKS clusters usually
+# have it already; kind does not.
+#
+#   helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+#   helm upgrade --install metrics-server metrics-server/metrics-server \
+#     --version 3.14.0 -n kube-system -f monitoring/metrics-server-values.yaml
+args:
+  # kind's kubelets serve self-signed certificates that metrics-server cannot
+  # verify. Fine for a local cluster; never set this on EKS.
+  - --kubelet-insecure-tls
