@@ -9,13 +9,13 @@
 # pod restart silently changes what is running.
 backend:
   image:
-    tag: "1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4"
+    tag: "49467d77523aea9f15e57deba75e5723a1262111"
     pullPolicy: IfNotPresent
   replicaCount: 2
 
 frontend:
   image:
-    tag: "1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4"
+    tag: "49467d77523aea9f15e57deba75e5723a1262111"
     pullPolicy: IfNotPresent
   replicaCount: 2
 
