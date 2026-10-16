@@ -1,55 +1,67 @@
-Terraform evidence — ML Experiment Tracker
-Date: 2026-10-15 14:22 UTC   Terraform 1.9.8
+Terraform evidence - ML Experiment Tracker
+Applied against real AWS on 2026-10-16 11:46:46Z   Terraform 1.9.8
+Account 632404568113   Region ap-southeast-2 (Sydney)
 
-Two targets share one configuration:
-  * real AWS   - defaults (enable_eks = true), needs credentials
-  * LocalStack - -var-file=localstack.tfvars (use_localstack = true, enable_eks = false)
+Why Sydney and not Mumbai: this account is enrolled in AWS's 'projects'
+experience, which pins it to a single region and denies every API call
+addressed elsewhere with a Service Control Policy. The denial names the
+service and never the region, so it presents as 'EKS is blocked in this
+account' rather than 'that region is not yours'. See the README.
 
-LocalStack's free edition does not implement EKS:
-  An error occurred (InternalFailure) when calling the CreateCluster operation:
-  API for service 'eks' not yet implemented or pro feature
-Everything else this project declares - VPC, subnets, IGW, NAT Gateway, EIP,
-route tables, S3 endpoint, IAM roles - is supported, so the network applies for real.
-
-################ PART 1 — against real AWS (no credentials attached) ################
-
+========================================================================
 $ terraform init
-If you ever set or change modules or backend configuration for Terraform,
-rerun this command to reinitialize your working directory. If you forget, other
-commands will detect it and remind you to do so if necessary.
+========================================================================
+Terraform has been successfully initialized!
 
-$ terraform fmt -check -recursive
-exit=0
-
+========================================================================
 $ terraform validate
+========================================================================
 Success! The configuration is valid.
 
 
-$ terraform plan     # EKS enabled, no credentials
-  on providers.tf line 8, in provider "aws":
-   8: provider "aws" {
+========================================================================
+$ terraform plan
+========================================================================
+$ terraform plan
+Plan: 31 to add, 0 to change, 0 to destroy.
 
-Please see https://registry.terraform.io/providers/hashicorp/aws
-for more information about providing credentials.
+# aws_eip.nat[0] will be created
+# aws_internet_gateway.main will be created
+# aws_nat_gateway.main[0] will be created
+# aws_route_table.private[0] will be created
+# aws_route_table.private[1] will be created
+# aws_route_table.public will be created
+# aws_route_table_association.private[0] will be created
+# aws_route_table_association.private[1] will be created
+# aws_route_table_association.public[0] will be created
+# aws_route_table_association.public[1] will be created
+# aws_subnet.private[0] will be created
+# aws_subnet.private[1] will be created
+# aws_subnet.public[0] will be created
+# aws_subnet.public[1] will be created
+# aws_vpc.main will be created
+# aws_vpc_endpoint.s3 will be created
+# module.eks[0].data.tls_certificate.cluster will be read during apply
+# (config refers to values not yet known)
+# module.eks[0].aws_cloudwatch_log_group.cluster will be created
+# module.eks[0].aws_eks_addon.coredns will be created
+# module.eks[0].aws_eks_addon.ebs_csi will be created
+# module.eks[0].aws_eks_addon.kube_proxy will be created
+# module.eks[0].aws_eks_addon.vpc_cni will be created
+# module.eks[0].aws_eks_cluster.main will be created
+# module.eks[0].aws_eks_node_group.main will be created
+# module.eks[0].aws_iam_openid_connect_provider.cluster will be created
+# module.eks[0].aws_iam_role.cluster will be created
+# module.eks[0].aws_iam_role.node will be created
+# module.eks[0].aws_iam_role_policy_attachment.cluster_policy will be created
+# module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"] will be created
+# module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"] will be created
+# module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"] will be created
+# module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"] will be created
 
-Error: failed to refresh cached credentials, no EC2 IMDS role found,
-operation error ec2imds: GetMetadata, request canceled, context deadline
-exceeded
-
-
-The provider tried every credential source and found none. 169.254.169.254 is the EC2
-instance metadata service - the LAST source in the chain - so this says 'nothing was
-configured', not 'the configuration is broken'. plan needs credentials because it
-REFRESHES: it asks AWS what exists before diffing. validate is offline.
-
-################ PART 2 — against LocalStack (fully executed) ################
-
-$ terraform plan -var-file=localstack.tfvars
-
-$ terraform apply
-Apply complete! Resources: 16 added, 0 changed, 0 destroyed.
-
-$ terraform state list
+========================================================================
+$ terraform state list      (after apply)
+========================================================================
 data.aws_availability_zones.available
 aws_eip.nat[0]
 aws_internet_gateway.main
@@ -67,81 +79,116 @@ aws_subnet.public[0]
 aws_subnet.public[1]
 aws_vpc.main
 aws_vpc_endpoint.s3
+module.eks[0].data.aws_iam_policy_document.cluster_assume_role
+module.eks[0].data.aws_iam_policy_document.node_assume_role
+module.eks[0].data.tls_certificate.cluster
+module.eks[0].aws_cloudwatch_log_group.cluster
+module.eks[0].aws_eks_addon.coredns
+module.eks[0].aws_eks_addon.kube_proxy
+module.eks[0].aws_eks_addon.vpc_cni
+module.eks[0].aws_eks_cluster.main
+module.eks[0].aws_eks_node_group.main
+module.eks[0].aws_iam_role.cluster
+module.eks[0].aws_iam_role.node
+module.eks[0].aws_iam_role_policy_attachment.cluster_policy
+module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]
+module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"]
+module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"]
+module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"]
 
-$ terraform output
-availability_zones = tolist([
-  "ap-south-1a",
-  "ap-south-1b",
-])
-configure_kubectl = "EKS disabled (enable_eks = false)"
-private_subnet_ids = [
-  "subnet-b026910a",
-  "subnet-d6721eb3",
-]
-public_subnet_ids = [
-  "subnet-3c620fbe",
-  "subnet-49c1d91b",
-]
-vpc_cidr = "10.0.0.0/16"
-vpc_id = "vpc-cc1fbb22"
+========================================================================
+Verified with the AWS CLI, not just from Terraform state
+========================================================================
+$ aws eks describe-cluster --name mltracker-dev --region ap-southeast-2
+-----------------------------------------------------------------------------------------------
+|                                       DescribeCluster                                       |
++----------+----------------------------------------------------------------------------------+
+|  Endpoint|  https://9CB5238F98E3866898A94A8ED114BE5E.gr7.ap-southeast-2.eks.amazonaws.com   |
+|  Name    |  mltracker-dev                                                                   |
+|  Status  |  ACTIVE                                                                          |
+|  Version |  1.33                                                                            |
+|  VpcId   |  vpc-0b7e271332e087ffc                                                           |
++----------+----------------------------------------------------------------------------------+
 
----- verified independently with the AWS CLI, not just from state ----
+$ aws eks describe-nodegroup --cluster-name mltracker-dev --nodegroup-name mltracker-dev-nodes
+----------------------------------------------------------------------------
+|                             DescribeNodegroup                            |
++---------+---------------+------+------+-----------------------+----------+
+| Desired | InstanceType  | Max  | Min  |         Name          | Status   |
++---------+---------------+------+------+-----------------------+----------+
+|  2      |  t3.medium    |  2   |  1   |  mltracker-dev-nodes  |  ACTIVE  |
++---------+---------------+------+------+-----------------------+----------+
 
-$ aws ec2 describe-vpcs
-----------------------------------------------
-|                DescribeVpcs                |
-+-------------+-------------+----------------+
-|    CIDR     |    State    |     VpcId      |
-+-------------+-------------+----------------+
-|  10.0.0.0/16|  available  |  vpc-cc1fbb22  |
-+-------------+-------------+----------------+
-$ aws ec2 describe-subnets      # PublicIP=True are the two public subnets
-----------------------------------------------------------------
-|                        DescribeSubnets                       |
-+-------------+----------------+-----------+-------------------+
-|     AZ      |     CIDR       | PublicIP  |     SubnetId      |
-+-------------+----------------+-----------+-------------------+
-|  ap-south-1a|  10.0.0.0/20   |  True     |  subnet-3c620fbe  |
-|  ap-south-1b|  10.0.16.0/20  |  True     |  subnet-49c1d91b  |
-|  ap-south-1a|  10.0.32.0/20  |  False    |  subnet-b026910a  |
-|  ap-south-1b|  10.0.48.0/20  |  False    |  subnet-d6721eb3  |
-+-------------+----------------+-----------+-------------------+
-$ aws ec2 describe-internet-gateways / describe-nat-gateways
-  igw: igw-91b14b68
-  nat: nat-3153e4261397bcec9	available	subnet-3c620fbe
+$ aws ec2 describe-vpcs --filters Name=tag:Name,Values=mltracker-dev-vpc
+-------------------------------------------------------
+|                    DescribeVpcs                     |
++--------------+------------+-------------------------+
+|     Cidr     |   State    |          VpcId          |
++--------------+------------+-------------------------+
+|  10.0.0.0/16 |  available |  vpc-0b7e271332e087ffc  |
++--------------+------------+-------------------------+
 
-Two public subnets in two Availability Zones, two private, and the NAT Gateway sits in
-a PUBLIC subnet - putting it in the private subnet it serves creates a routing loop.
+$ aws ec2 describe-subnets   (public, then private)
+-----------------------------------------------------------------------------
+|                              DescribeSubnets                              |
++------------------+---------------+-----------+----------------------------+
+|        AZ        |     Cidr      | PublicIP  |          Subnet            |
++------------------+---------------+-----------+----------------------------+
+|  ap-southeast-2b |  10.0.16.0/20 |  True     |  subnet-04d06921de0acc5e4  |
+|  ap-southeast-2a |  10.0.0.0/20  |  True     |  subnet-03ac57c9b63eae0b3  |
++------------------+---------------+-----------+----------------------------+
+-----------------------------------------------------------------
+|                        DescribeSubnets                        |
++-----------------+----------------+----------------------------+
+|       AZ        |     Cidr       |          Subnet            |
++-----------------+----------------+----------------------------+
+|  ap-southeast-2a|  10.0.32.0/20  |  subnet-08c7c9b9de5148917  |
+|  ap-southeast-2b|  10.0.48.0/20  |  subnet-00f5df65c5eb56337  |
++-----------------+----------------+----------------------------+
 
-################ PART 3 — terraform destroy ################
+========================================================================
+The cluster is real: kubectl against the EKS API server
+========================================================================
+$ aws eks update-kubeconfig --region ap-southeast-2 --name mltracker-dev
+$ kubectl get nodes
+NAME                                             STATUS   ROLES    AGE     VERSION
+ip-10-0-46-153.ap-southeast-2.compute.internal   Ready    <none>   2m41s   v1.33.13-eks-b9510e3
+ip-10-0-50-214.ap-southeast-2.compute.internal   Ready    <none>   2m43s   v1.33.13-eks-b9510e3
 
-$ terraform destroy -var-file=localstack.tfvars -auto-approve
-aws_nat_gateway.main[0]: Still destroying... [id=nat-3153e4261397bcec9, 10s elapsed]
-aws_nat_gateway.main[0]: Destruction complete after 11s
-aws_eip.nat[0]: Destroying... [id=eipalloc-4b94bf8e]
-aws_subnet.public[0]: Destroying... [id=subnet-3c620fbe]
-aws_subnet.public[1]: Destroying... [id=subnet-49c1d91b]
-aws_eip.nat[0]: Destruction complete after 0s
-aws_subnet.public[0]: Destruction complete after 0s
-aws_subnet.public[1]: Destruction complete after 0s
-aws_internet_gateway.main: Destroying... [id=igw-91b14b68]
-aws_internet_gateway.main: Destruction complete after 0s
-aws_vpc.main: Destroying... [id=vpc-cc1fbb22]
-aws_vpc.main: Destruction complete after 0s
+========================================================================
+$ terraform destroy
+========================================================================
+  module.eks[0].aws_iam_role_policy_attachment.node["arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"]: Destruction complete after 2s
+  module.eks[0].aws_iam_role.node: Destruction complete after 1s
+  module.eks[0].aws_eks_cluster.main: Destruction complete after 2m10s
+  module.eks[0].aws_iam_role_policy_attachment.cluster_policy: Destruction complete after 2s
+  module.eks[0].aws_cloudwatch_log_group.cluster: Destruction complete after 3s
+  module.eks[0].aws_iam_role.cluster: Destruction complete after 1s
+  aws_subnet.private[0]: Destruction complete after 10s
+  aws_subnet.public[1]: Destruction complete after 10s
+  aws_subnet.public[0]: Destruction complete after 10s
+  aws_subnet.private[1]: Destruction complete after 10s
+  aws_vpc.main: Destruction complete after 1s
+  Destroy complete! Resources: 30 destroyed.
+  ...
+Destroy complete! Resources: 30 destroyed.
 
-Destroy complete! Resources: 16 destroyed.
+========================================================================
+Destroy exiting 0 is not proof. Independent sweep afterwards:
+========================================================================
+  EKS clusters      0
+  EC2 instances     0
+  NAT gateways      0
+  Elastic IPs       0
+  Load balancers    0
+  EBS volumes       0
+  mltracker VPC     0
 
----- the exit code is not evidence; sweep for anything left behind ----
+Other regions need no sweep: this account's policy denies every API call
+outside ap-southeast-2, so nothing could have been created anywhere else.
 
-$ terraform state list
-  (empty - nothing left in state)
-
-$ aws ec2 describe-vpcs / subnets / nat-gateways / addresses
-  VPCs tagged mltracker : 0
-  NAT gateways available: 0
-  Elastic IPs allocated : 0
-  Internet gateways     : 0
-
-Nothing remains. On real AWS this sweep matters more than the exit code: an Ingress
-that created a load balancer leaves an ENI Terraform does not know about, the subnet
-delete fails, and resources keep billing while the operator believes they are gone.
+One resource was refused during apply: iam:CreateOpenIDConnectProvider is
+also denied by the account policy. That is the OIDC provider for IRSA
+(pod-level IAM). It is not needed for the cluster, the node group or the
+VPC, which all provisioned; it is why the EBS CSI add-on never became
+ACTIVE, and the apply was stopped there and the stack destroyed.

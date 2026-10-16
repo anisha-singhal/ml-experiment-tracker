@@ -38,7 +38,7 @@ Then open these tabs in this order, so you can move left to right on camera:
 
 | Tab | URL |
 |---|---|
-| 1 | `demo/presentation.pptx` (in Keynote/PowerPoint, presenter mode ready) |
+| 1 | `demo/slides.pdf` (open in Preview, View → Slideshow, ⌘⇧F) |
 | 2 | `https://github.com/anisha-singhal/ml-experiment-tracker` |
 | 3 | `https://github.com/anisha-singhal/ml-experiment-tracker/actions` |
 | 4 | `http://localhost:8080` — the app through the Ingress |

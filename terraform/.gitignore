@@ -2,6 +2,9 @@
 *.tfstate
 *.tfstate.*
 *.tfplan
+# `terraform plan -out=tfplan` has no extension, so *.tfplan alone misses it.
+# A saved plan embeds the account ID and every resource attribute.
+tfplan
 crash.log
 
 # Real variable values, which may name accounts or CIDRs. The .example is committed.

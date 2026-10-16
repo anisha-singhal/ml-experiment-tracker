@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ML Experiment Tracker — DevOps Capstone</title>
+<!--
+  Source for demo/slides.pdf. Rebuild with:
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless \
+      --no-pdf-header-footer --print-to-pdf=demo/slides.pdf demo/slides-src/slides.html
+
+  Same visual language as the application: monochrome, with colour reserved
+  for status, and every figure set in a monospaced face.
+-->
+<style>
+  @page { size: 1600px 900px; margin: 0; }
+
+  :root {
+    --bg: #09090b; --surface: #0e0e11; --surface-2: #16161a;
+    --line: #232329; --line-2: #2c2c33;
+    --text: #fafafa; --text-2: #a1a1aa; --text-3: #6e6e78;
+    --ok: #2ea36a; --warn: #e3a008; --bad: #e05260;
+    --sans: -apple-system, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); }
+  body {
+    font-family: var(--sans); color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+
+  .slide {
+    width: 1600px; height: 900px; position: relative; overflow: hidden;
+    padding: 60px 80px 48px; display: flex; flex-direction: column;
+    background: var(--bg);
+    break-after: page; page-break-after: always;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+
+  /* ---------- chrome shared by every content slide ---------- */
+  .top {
+    display: flex; justify-content: space-between; align-items: center;
+    font: 500 12.5px/1 var(--mono); letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .top .n { color: var(--text); margin-right: 14px; }
+  h1 {
+    margin: 26px 0 0; font-size: 50px; font-weight: 620;
+    letter-spacing: -0.035em; line-height: 1.04;
+  }
+  h1 .dim { color: var(--text-3); }
+  .lede { margin: 14px 0 0; font-size: 19px; line-height: 1.5; color: var(--text-2); max-width: 980px; }
+  .foot {
+    margin-top: auto; padding-top: 14px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between;
+    font: 12px var(--mono); color: var(--text-3); letter-spacing: 0.02em;
+  }
+  .body { margin-top: 36px; flex: 1; min-height: 0; display: flex; gap: 48px; }
+
+  .label {
+    font: 600 11.5px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-3);
+  }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text-3); }
+  .dot.ok { background: var(--ok); } .dot.warn { background: var(--warn); } .dot.bad { background: var(--bad); }
+
+  /* ---------- a screenshot in a quiet browser frame ---------- */
+  .win {
+    border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden;
+    background: var(--surface);
+    box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.9);
+    display: flex; flex-direction: column;
+  }
+  .win .bar {
+    flex: none; height: 34px; display: flex; align-items: center; gap: 7px;
+    padding: 0 14px; border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  .win .bar i { width: 9px; height: 9px; border-radius: 50%; background: #2e2e35; }
+  .win .bar span {
+    margin-left: 10px; font: 12px var(--mono); color: var(--text-3);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .win .shot { flex: 1; min-height: 0; overflow: hidden; }
+  .win img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top left; }
+  .win.nochrome { align-self: flex-start; }
+  .win.nochrome .shot { flex: none; }
+  .win.nochrome img { height: auto; margin-top: -4.4%; }
+
+  /* ---------- lists of facts ---------- */
+  .facts { list-style: none; margin: 0; padding: 0; }
+  .facts li {
+    display: flex; justify-content: space-between; gap: 24px;
+    padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 17px;
+  }
+  .facts li:first-child { border-top: 1px solid var(--line); }
+  .facts li span:first-child { color: var(--text-2); }
+  .facts li span:last-child { font-family: var(--mono); font-size: 15.5px; text-align: right; }
+
+  .point { padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .point:first-child { border-top: 1px solid var(--line); }
+  .point b { display: block; font-size: 18.5px; font-weight: 600; letter-spacing: -0.01em; }
+  .point p { margin: 5px 0 0; font-size: 15.5px; line-height: 1.5; color: var(--text-2); }
+
+  .note {
+    border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface);
+    padding: 18px 22px;
+  }
+  .note .label { margin-bottom: 9px; }
+  .note p { margin: 0; font-size: 15.5px; line-height: 1.55; color: var(--text-2); }
+  .note p b { color: var(--text); font-weight: 600; }
+
+  /* ================================================================ 01 */
+  .title-slide { padding: 0; }
+  .title-slide .left {
+    position: absolute; left: 80px; top: 60px; bottom: 48px; width: 600px;
+    display: flex; flex-direction: column;
+  }
+  .title-slide .big {
+    margin: auto 0 0; font-size: 92px; font-weight: 640; letter-spacing: -0.05em; line-height: 0.95;
+  }
+  .title-slide .sub { margin: 26px 0 0; font-size: 21px; line-height: 1.5; color: var(--text-2); }
+  .title-slide .who { margin-top: auto; padding-top: 18px; border-top: 1px solid var(--line); }
+  .title-slide .who b { font-size: 20px; font-weight: 600; }
+  .title-slide .who p { margin: 6px 0 0; font: 14px var(--mono); color: var(--text-3); }
+  .title-slide .hero {
+    position: absolute; left: 760px; top: 120px; width: 1020px; height: 640px;
+  }
+
+  /* ================================================================ 02 */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+           background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .stats div { background: var(--surface); padding: 18px 20px; }
+  .stats b { display: block; font: 500 38px/1 var(--mono); letter-spacing: -0.03em; }
+  .stats span { display: block; margin-top: 8px; font-size: 13.5px; color: var(--text-3); }
+
+  /* ================================================================ 03 */
+  .arch { margin-top: 46px; display: grid; grid-template-columns: 140px 1fr; row-gap: 34px; align-items: center; }
+  .lane { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 64px; align-items: center; }
+  .lane > .node, .lane > .stack { position: relative; }
+  .lane > .node:not(:last-child)::after, .lane > .stack::after {
+    content: ""; position: absolute; top: 50%; right: -64px; width: 64px; height: 1px; background: #3d3d46;
+  }
+  .lane > .node:not(:last-child)::before, .lane > .stack::before {
+    content: ""; position: absolute; top: calc(50% - 4px); right: -64px;
+    border-left: 7px solid #3d3d46; border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent;
+  }
+  .node {
+    border: 1px solid var(--line-2); background: var(--surface); border-radius: 10px;
+    padding: 17px 22px;
+  }
+  .node b { display: block; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+  .node small { display: block; margin-top: 5px; font: 13.5px var(--mono); color: var(--text-3); }
+  .node.key { border-color: #55555f; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .stack .node { padding: 9px 16px; }
+  .arrow { flex: 0 0 52px; height: 1px; background: #3d3d46; position: relative; }
+  .arrow::after {
+    content: ""; position: absolute; right: -1px; top: -4px;
+    border-left: 7px solid #3d3d46; border-top: 4.5px solid transparent; border-bottom: 4.5px solid transparent;
+  }
+
+  /* ================================================================ 05 */
+  .stages { margin-top: 34px; display: flex; align-items: center; }
+  .stage {
+    flex: 1; border: 1px solid var(--line-2); border-radius: 10px; background: var(--surface);
+    padding: 14px 16px;
+  }
+  .stage .row { display: flex; align-items: center; gap: 8px; font-size: 16.5px; font-weight: 600; }
+  .stage small { display: block; margin-top: 5px; font: 12.5px var(--mono); color: var(--text-3); }
+  .stage.gate { border-color: rgba(224, 82, 96, 0.55); }
+  .stages .arrow { flex-basis: 26px; }
+
+  /* ================================================================ 06 */
+  .cmd {
+    margin-top: 30px; padding: 14px 20px; border-radius: 9px;
+    background: var(--surface); border: 1px solid var(--line);
+    font: 16px var(--mono); color: var(--text-2);
+  }
+  .cmd em { font-style: normal; color: var(--text); }
+  .delta { flex: 1; border: 1px solid var(--line-2); border-radius: 12px; background: var(--surface); padding: 26px 30px; }
+  .delta .nums { display: flex; align-items: baseline; gap: 22px; margin-top: 20px; }
+  .delta .from { font: 500 104px/1 var(--mono); color: var(--bad); letter-spacing: -0.05em; }
+  .delta .to { font: 500 104px/1 var(--mono); color: var(--ok); letter-spacing: -0.05em; }
+  .delta .arr { font: 44px var(--mono); color: var(--text-3); }
+  .delta .what { margin-top: 10px; font-size: 15px; color: var(--text-3); }
+  .delta p { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 15.5px; line-height: 1.55; color: var(--text-2); }
+  .delta p b { color: var(--text); font-weight: 600; }
+
+  /* ================================================================ 10 */
+  .lessons { margin-top: 34px; }
+  .lesson { display: grid; grid-template-columns: 90px 1fr; gap: 10px; padding: 19px 0; border-bottom: 1px solid var(--line); }
+  .lesson:first-child { border-top: 1px solid var(--line); }
+  .lesson .k { font: 500 30px/1 var(--mono); color: var(--text-3); letter-spacing: -0.02em; padding-top: 2px; }
+  .lesson b { display: block; font-size: 21px; font-weight: 600; letter-spacing: -0.015em; }
+  .lesson p { margin: 6px 0 0; font-size: 16px; line-height: 1.5; color: var(--text-2); max-width: 1150px; }
+
+  /* ================================================================ 11 */
+  .chain { margin-top: 40px; display: flex; flex-wrap: nowrap; align-items: center; }
+  .chain span {
+    font: 18px var(--mono); padding: 11px 15px; white-space: nowrap; border: 1px solid var(--line-2);
+    border-radius: 8px; background: var(--surface);
+  }
+  .chain i { flex: 1; min-width: 14px; height: 1px; background: #3d3d46; }
+  .results { margin-top: 48px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+             background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .results div { background: var(--surface); padding: 28px 28px 26px; }
+  .results b { display: flex; align-items: center; gap: 12px; font: 500 44px/1 var(--mono); letter-spacing: -0.04em; }
+  .results b .dot { width: 10px; height: 10px; }
+  .results span { display: block; margin-top: 14px; font-size: 15.5px; color: var(--text-3); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ 01 TITLE -->
+<section class="slide title-slide">
+  <div class="left">
+    <div class="top"><span>DevOps Capstone · Session 21</span></div>
+    <div class="big">ML Experiment<br>Tracker</div>
+    <p class="sub">A tracker for machine-learning training runs, taken from a laptop to a monitored, GitOps-managed Kubernetes cluster — with the infrastructure provisioned on AWS by Terraform.</p>
+    <div class="who">
+      <b>Anisha Singhal</b>
+      <p>Enrollment 10020 · github.com/anisha-singhal/ml-experiment-tracker</p>
+    </div>
+  </div>
+  <div class="hero win">
+    <div class="bar"><i></i><i></i><i></i><span>localhost:8080 — served through the Kubernetes Ingress</span></div>
+    <div class="shot"><img src="../../docs/screenshots/app-dashboard.png" alt=""></div>
+  </div>
+</section>
+
+<!-- ============================================================ 02 OVERVIEW -->
+<section class="slide">
+  <div class="top"><span><span class="n">01</span>Project overview</span><span>ML Experiment Tracker</span></div>
+  <h1>Which configuration<br>produced the good number?</h1>
+  <div class="body">
+    <div style="width: 600px; display: flex; flex-direction: column;">
+      <div class="point"><b>One record per training run</b><p>Name, model, dataset, learning rate, epochs, status and accuracy — filterable by status, with totals, the best run and the mean.</p></div>
+      <div class="point"><b>A status lifecycle</b><p>queued → running → completed, or failed. Each transition is an API call the dashboard makes.</p></div>
+      <div class="point"><b>Accuracy is nullable, not zero</b><p>A queued run has no score yet, which is a different thing from having scored 0.0. The distinction holds in the schema, the API and the UI.</p></div>
+      <div class="stats" style="margin-top: auto;">
+        <div><b>9</b><span>REST endpoints</span></div>
+        <div><b>17</b><span>pytest cases</span></div>
+        <div><b>2×2</b><span>pod replicas</span></div>
+        <div><b>8</b><span>Grafana panels</span></div>
+      </div>
+    </div>
+    <div class="win" style="flex: 1;">
+      <div class="bar"><i></i><i></i><i></i><span>localhost:8080</span></div>
+      <div class="shot"><img src="../../docs/screenshots/k8s-app-via-ingress.png" alt=""></div>
+    </div>
+  </div>
+  <div class="foot"><span>FastAPI · PostgreSQL · React</span><span>02</span></div>
+</section>
+
+<!-- ============================================================ 03 ARCHITECTURE -->
+<section class="slide">
+  <div class="top"><span><span class="n">02</span>Architecture</span><span>ML Experiment Tracker</span></div>
+  <h1>Four lanes, one chain</h1>
+  <div class="arch">
+    <div class="label">Delivery</div>
+    <div class="lane">
+      <div class="node"><b>Developer</b><small>git push</small></div>
+      <div class="node"><b>GitHub</b><small>source of truth</small></div>
+      <div class="node key"><b>GitHub Actions</b><small>test · build · scan · push</small></div>
+      <div class="node"><b>GHCR</b><small>images tagged :sha</small></div>
+    </div>
+
+    <div class="label">Runtime</div>
+    <div class="lane">
+      <div class="node key"><b>Argo CD</b><small>syncs helm/mltracker</small></div>
+      <div class="node"><b>Ingress</b><small>/ · /api</small></div>
+      <div class="stack">
+        <div class="node"><b>frontend × 2</b><small>React on nginx</small></div>
+        <div class="node"><b>backend × 2</b><small>FastAPI</small></div>
+      </div>
+      <div class="node"><b>PostgreSQL</b><small>StatefulSet + PVC</small></div>
+    </div>
+
+    <div class="label">Platform</div>
+    <div class="lane">
+      <div class="node key"><b>Terraform</b><small>infrastructure as code</small></div>
+      <div class="node"><b>AWS VPC</b><small>2 AZs · public + private</small></div>
+      <div class="node"><b>EKS 1.33</b><small>2 × t3.medium nodes</small></div>
+    </div>
+
+    <div class="label">Observe</div>
+    <div class="lane">
+      <div class="node"><b>/metrics</b><small>on every backend pod</small></div>
+      <div class="node key"><b>Prometheus</b><small>via ServiceMonitor</small></div>
+      <div class="node"><b>Grafana</b><small>dashboard as a ConfigMap</small></div>
+    </div>
+  </div>
+  <div class="foot"><span>Local: kind, 3 nodes · Cloud: EKS in ap-southeast-2, created and destroyed by Terraform</span><span>03</span></div>
+</section>
+
+<!-- ============================================================ 04 STACK -->
+<section class="slide">
+  <div class="top"><span><span class="n">03</span>Tech stack</span><span>ML Experiment Tracker</span></div>
+  <h1>Tech stack</h1>
+  <div class="body" style="gap: 64px;">
+    <div style="flex: 1;">
+      <div class="label" style="margin-bottom: 14px;">Application</div>
+      <ul class="facts">
+        <li><span>API</span><span>FastAPI 0.143</span></li>
+        <li><span>ORM and migrations</span><span>SQLAlchemy 2.1 · Alembic</span></li>
+        <li><span>Validation</span><span>Pydantic 2.14</span></li>
+        <li><span>Database</span><span>PostgreSQL 16</span></li>
+        <li><span>Frontend</span><span>React 18 · Vite 5</span></li>
+        <li><span>Tests</span><span>pytest · 17 cases</span></li>
+      </ul>
+      <div class="label" style="margin: 30px 0 14px;">Delivery</div>
+      <ul class="facts">
+        <li><span>CI/CD</span><span>GitHub Actions</span></li>
+        <li><span>Registry</span><span>GHCR · tagged by commit SHA</span></li>
+        <li><span>Security scanning</span><span>Trivy 0.75</span></li>
+      </ul>
+    </div>
+    <div style="flex: 1;">
+      <div class="label" style="margin-bottom: 14px;">Platform</div>
+      <ul class="facts">
+        <li><span>Containers</span><span>Docker · multi-stage · non-root</span></li>
+        <li><span>Orchestration</span><span>Kubernetes · kind and EKS 1.33</span></li>
+        <li><span>Packaging</span><span>Helm 3</span></li>
+        <li><span>Routing</span><span>ingress-nginx</span></li>
+        <li><span>GitOps</span><span>Argo CD 2.13</span></li>
+        <li><span>Infrastructure as code</span><span>Terraform 1.9 · AWS</span></li>
+      </ul>
+      <div class="label" style="margin: 30px 0 14px;">Observability</div>
+      <ul class="facts">
+        <li><span>Metrics</span><span>prometheus-fastapi-instrumentator</span></li>
+        <li><span>Collection</span><span>Prometheus · kube-prometheus-stack</span></li>
+        <li><span>Dashboards</span><span>Grafana</span></li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>Every version pinned; every image rebuilt and rescanned on each push</span><span>04</span></div>
+</section>
+
+<!-- ============================================================ 05 CI/CD -->
+<section class="slide">
+  <div class="top"><span><span class="n">04</span>CI/CD</span><span>ML Experiment Tracker</span></div>
+  <h1>Every push runs the whole gate</h1>
+  <div class="stages">
+    <div class="stage"><div class="row"><span class="dot ok"></span>Test</div><small>pytest × 17</small></div><i class="arrow"></i>
+    <div class="stage"><div class="row"><span class="dot ok"></span>Build</div><small>frontend bundle</small></div><i class="arrow"></i>
+    <div class="stage"><div class="row"><span class="dot ok"></span>Image</div><small>docker, matrix</small></div><i class="arrow"></i>
+    <div class="stage"><div class="row"><span class="dot ok"></span>Scan</div><small>trivy</small></div><i class="arrow"></i>
+    <div class="stage gate"><div class="row"><span class="dot bad"></span>Gate</div><small>HIGH / CRITICAL</small></div><i class="arrow"></i>
+    <div class="stage"><div class="row"><span class="dot ok"></span>Push</div><small>ghcr.io · :sha</small></div>
+  </div>
+  <div class="body" style="margin-top: 30px;">
+    <div style="width: 540px;">
+      <div class="point"><b>Scanned before it is pushed</b><p>The image is loaded into the runner's Docker daemon, scanned there, and pushed only if the gate passes. A vulnerable image never reaches the registry.</p></div>
+      <div class="point"><b>Tagged with the commit SHA</b><p>Never :latest. Every running pod traces back to the exact commit that built it, and a rollback is a tag change, not a rebuild.</p></div>
+      <div class="point"><b>Fan-in, not a chain</b><p>Tests and the frontend build run in parallel; both must pass before any image is built.</p></div>
+    </div>
+    <div class="win" style="flex: 1;">
+      <div class="bar"><i></i><i></i><i></i><span>github.com/anisha-singhal/ml-experiment-tracker/actions</span></div>
+      <div class="shot"><img src="../../docs/screenshots/github-actions-pipeline.png" alt=""></div>
+    </div>
+  </div>
+  <div class="foot"><span>.github/workflows/ci-cd.yml</span><span>05</span></div>
+</section>
+
+<!-- ============================================================ 06 DEVSECOPS -->
+<section class="slide">
+  <div class="top"><span><span class="n">05</span>DevSecOps</span><span>ML Experiment Tracker</span></div>
+  <h1>The first scan failed both images. <span class="dim">Good.</span></h1>
+  <div class="cmd">$ <em>trivy image</em> --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 &lt;image&gt;</div>
+  <div class="body" style="margin-top: 26px; gap: 28px; align-items: flex-start; flex: none;">
+    <div class="delta">
+      <div class="label">Backend · fixable HIGH</div>
+      <div class="nums"><span class="from">3</span><span class="arr">→</span><span class="to">0</span></div>
+      <p>All three in <b>starlette 0.41.3</b> — not a direct dependency; FastAPI pins it. <b>CVE-2026-48818</b>: StaticFiles did not reject Windows UNC paths, so a crafted request could make the server open a share on an attacker's host. Fixed by upgrading FastAPI 0.115 → 0.143.</p>
+    </div>
+    <div class="delta">
+      <div class="label">Frontend · fixable HIGH + CRITICAL</div>
+      <div class="nums"><span class="from">41</span><span class="arr">→</span><span class="to">0</span></div>
+      <p>None of it this project's code — all inherited from the <b>nginx 1.27-alpine</b> base image, including 2 CRITICAL in libssl. A pinned base tag is rebuilt less often than Alpine ships fixes. Fixed with 1.29-alpine plus <b>apk upgrade</b> at build time.</p>
+    </div>
+  </div>
+  <div class="note" style="margin-top: 26px;">
+    <div class="label">Why --ignore-unfixed</div>
+    <p>The backend still reports <b>44 HIGH with no upstream fix</b>. Failing every build on a CVE nobody has patched yet blocks delivery for a reason this repository cannot act on — so the gate fails only on what can be fixed, and the rest is tracked in docs/trivy-output.txt rather than hidden.</p>
+  </div>
+  <div class="foot"><span>Gate runs on both images, on every push, before anything is published</span><span>06</span></div>
+</section>
+
+<!-- ============================================================ 07 INFRASTRUCTURE -->
+<section class="slide">
+  <div class="top"><span><span class="n">06</span>Infrastructure</span><span>ML Experiment Tracker</span></div>
+  <h1>Terraform on real AWS</h1>
+  <div class="body">
+    <div style="width: 520px; display: flex; flex-direction: column;">
+      <ul class="facts">
+        <li><span>Region</span><span>ap-southeast-2</span></li>
+        <li><span>VPC</span><span>10.0.0.0/16</span></li>
+        <li><span>Subnets</span><span>2 public + 2 private · 2 AZs</span></li>
+        <li><span>Egress</span><span>IGW + 1 NAT gateway</span></li>
+        <li><span>EKS control plane</span><span>1.33 · Active</span></li>
+        <li><span>Node group</span><span>2 × t3.medium · Ready</span></li>
+      </ul>
+      <div class="note" style="margin-top: auto;">
+        <div class="label">What cost an hour</div>
+        <p>Every call returned <b>explicit deny in a service control policy</b> — the account is pinned to one region and I was calling Mumbai. The error named the service, never the region.</p>
+      </div>
+    </div>
+    <div class="win nochrome" style="flex: 1;">
+      <div class="bar"><i></i><i></i><i></i><span>console.aws.amazon.com/eks/clusters/mltracker-dev?region=ap-southeast-2</span></div>
+      <div class="shot"><img src="../../docs/screenshots/aws-eks-cluster.png" alt=""></div>
+    </div>
+  </div>
+  <div class="foot"><span>plan → apply → verify with kubectl → destroy · total runtime under an hour</span><span>07</span></div>
+</section>
+
+<!-- ============================================================ 08 KUBERNETES + GITOPS -->
+<section class="slide">
+  <div class="top"><span><span class="n">07</span>Kubernetes · Helm · GitOps</span><span>ML Experiment Tracker</span></div>
+  <h1>The deployment is a commit</h1>
+  <div class="body">
+    <div class="win" style="flex: 1;">
+      <div class="bar"><i></i><i></i><i></i><span>Argo CD — mltracker · Synced · Healthy</span></div>
+      <div class="shot"><img src="../../docs/screenshots/argocd-application-tree.png" alt=""></div>
+    </div>
+    <div style="width: 500px;">
+      <div class="point"><b>Argo CD syncs the Helm chart</b><p>Nobody runs helm upgrade by hand. The synced revision is the Git commit it rendered.</p></div>
+      <div class="point"><b>Images pinned to a full SHA</b><p>Changing what runs means editing values-gitops.yaml and pushing.</p></div>
+      <div class="point"><b>Drift is reverted in five seconds</b><p>Scaling the frontend to 1 by hand put it back to 2 — the cluster cannot quietly diverge from Git.</p></div>
+      <div class="point"><b>Migrations run as initContainers</b><p>A Helm pre-install hook runs before the database exists, so it timed out every time.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>2 replicas each · ClusterIP services · Ingress routes / and /api · HPA on the backend</span><span>08</span></div>
+</section>
+
+<!-- ============================================================ 09 OBSERVABILITY -->
+<section class="slide">
+  <div class="top"><span><span class="n">08</span>Observability</span><span>ML Experiment Tracker</span></div>
+  <h1>Measured, not assumed</h1>
+  <div class="body">
+    <div style="width: 480px; display: flex; flex-direction: column;">
+      <div class="point"><b>/metrics → ServiceMonitor → Prometheus</b><p>The scrape target is declared in the chart, so both backend pods are found as they come and go.</p></div>
+      <div class="point"><b>The dashboard is a ConfigMap</b><p>Version-controlled, not clicked together in the UI and lost on the next reinstall.</p></div>
+      <div class="point"><b>The load generator sends failures on purpose</b><p>404s and 422s mixed into the traffic. A dashboard that only ever shows 200s proves nothing about its error panels.</p></div>
+    </div>
+    <div class="win" style="flex: 1;">
+      <div class="bar"><i></i><i></i><i></i><span>Grafana — ML Experiment Tracker</span></div>
+      <div class="shot"><img src="../../docs/screenshots/grafana-dashboard.png" alt=""></div>
+    </div>
+  </div>
+  <div class="foot"><span>Request rate · error rate · p50/p95/p99 latency · pods up · CPU per pod</span><span>09</span></div>
+</section>
+
+<!-- ============================================================ 10 LEARNINGS -->
+<section class="slide">
+  <div class="top"><span><span class="n">09</span>Key learnings</span><span>ML Experiment Tracker</span></div>
+  <h1>What actually broke</h1>
+  <div class="lessons">
+    <div class="lesson"><span class="k">01</span><div><b>Ordering guarantees are the whole game</b><p>A Helm hook orders against the release; an initContainer orders against the pod. Only one of them runs after the database exists.</p></div></div>
+    <div class="lesson"><span class="k">02</span><div><b>A security gate is only honest if it can fail</b><p>The first Trivy run broke both builds. Scanning after the push would have looked identical and protected nothing.</p></div></div>
+    <div class="lesson"><span class="k">03</span><div><b>Transitive dependencies are where the CVEs live</b><p>Nothing here imports starlette or libssl. Both shipped inside the images anyway.</p></div></div>
+    <div class="lesson"><span class="k">04</span><div><b>Read AccessDenied as "this request", not "this service"</b><p>A request carries a region, a principal and a resource. The message rarely says which one failed.</p></div></div>
+    <div class="lesson"><span class="k">05</span><div><b>Measure before you fix</b><p>Twice I "fixed" layout bugs by eye. Both times, measuring in the browser showed the real cause was somewhere else.</p></div></div>
+  </div>
+  <div class="foot"><span>Each one is written up in the README under "Things that broke, and why"</span><span>10</span></div>
+</section>
+
+<!-- ============================================================ 11 CLOSE -->
+<section class="slide">
+  <div class="top"><span><span class="n">10</span>Summary</span><span>ML Experiment Tracker</span></div>
+  <h1>One chain, end to end</h1>
+  <div class="chain">
+    <span>commit</span><i></i><span>test</span><i></i><span>build</span><i></i><span>scan</span><i></i><span>push :sha</span><i></i><span>Argo CD</span><i></i><span>Kubernetes</span><i></i><span>Ingress</span><i></i><span>Prometheus</span><i></i><span>Grafana</span>
+  </div>
+  <div class="results">
+    <div><b><span class="dot ok"></span>17 / 17</b><span>tests passing in CI</span></div>
+    <div><b><span class="dot ok"></span>0</b><span>fixable HIGH or CRITICAL CVEs</span></div>
+    <div><b><span class="dot ok"></span>Synced</b><span>Argo CD, healthy, self-healing</span></div>
+    <div><b><span class="dot ok"></span>2 / 2</b><span>EKS nodes Ready, then destroyed</span></div>
+  </div>
+  <div style="margin-top: auto; padding-bottom: 30px;">
+    <div style="font-size: 26px; font-weight: 600; letter-spacing: -0.02em;">Anisha Singhal</div>
+    <div style="margin-top: 8px; font: 16px var(--mono); color: var(--text-3);">Enrollment 10020 · github.com/anisha-singhal/ml-experiment-tracker</div>
+  </div>
+  <div class="foot" style="margin-top: 0;"><span>Thank you</span><span>11</span></div>
+</section>
+
+</body>
+</html>

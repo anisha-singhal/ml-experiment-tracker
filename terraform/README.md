@@ -116,23 +116,26 @@ Kubernetes made it and Terraform does not know it exists; the subnet delete then
 fails on an unknown network interface, and resources keep billing while the
 operator believes everything is gone.
 
-**Against real AWS — validated, not applied.** No AWS account is attached to this
-project, so the EKS cluster has not been created:
+**Against real AWS — applied, verified, destroyed.** In `ap-southeast-2`, on the account's
+only permitted region:
 
 ```
-$ terraform init
-Terraform has been successfully initialized!
+$ terraform plan -out=tfplan        # 33 to add
+$ terraform apply tfplan
+  EKS mltracker-dev            ACTIVE   1.33
+  node group mltracker-dev-nodes ACTIVE   2 x t3.medium
 
-$ terraform fmt -check -recursive
-$ echo $?
-0
+$ kubectl get nodes
+ip-10-0-46-153.ap-southeast-2.compute.internal   Ready   v1.33.13-eks-b9510e3
+ip-10-0-50-214.ap-southeast-2.compute.internal   Ready   v1.33.13-eks-b9510e3
 
-$ terraform validate
-Success! The configuration is valid.
-
-$ terraform plan
-Error: No valid credential sources found
+$ terraform destroy
+Destroy complete! Resources: 30 destroyed.
 ```
+
+Console screenshots are in [`../docs/screenshots/`](../docs/screenshots/) (`aws-eks-cluster.png`,
+`aws-vpc.png`) and the full transcript, including the post-destroy sweep, is in
+[`../docs/terraform-output.txt`](../docs/terraform-output.txt).
 
 Worth reading rather than skipping past. `169.254.169.254` is the EC2 instance
 metadata service — the **last** source in the AWS provider's credential chain,

@@ -8,18 +8,31 @@
 #   export AWS_ACCESS_KEY_ID=...
 #   export AWS_SECRET_ACCESS_KEY=...
 
-aws_region   = "ap-south-1"
+# The region this was actually applied in. An AWS account enrolled in the
+# "projects" experience is pinned to one region and a Service Control Policy
+# denies every API call made against any other. The denial names the service
+# and never the region, so it reads as "EKS is blocked in this account"
+# rather than "this region is not yours" - see the README.
+aws_region   = "ap-southeast-2"
 project_name = "mltracker"
 environment  = "dev"
 
 vpc_cidr = "10.0.0.0/16"
 az_count = 2
 
-kubernetes_version  = "1.31"
+# EKS bills $0.10/hour for a control plane in standard support and $0.60/hour
+# once a version reaches extended support. Pick a current version: an old one
+# costs six times as much for a worse cluster.
+kubernetes_version  = "1.33"
 node_instance_types = ["t3.medium"]
 node_desired_size   = 2
 node_min_size       = 1
-node_max_size       = 4
+
+# A new account's On-Demand Standard vCPU quota is commonly 5. t3.medium is
+# 2 vCPU, so two nodes fit and three do not. Raise this only after raising
+# the quota, or the node group fails to scale with a message that does not
+# mention quotas.
+node_max_size = 2
 
 # NAT Gateways are the largest cost in this project (~$0.045/hour each, plus
 # data processing). One shared gateway keeps an evaluation cheap; production

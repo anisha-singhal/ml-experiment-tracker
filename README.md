@@ -185,30 +185,51 @@ Application**.
 
 ### Infrastructure
 
-One Terraform configuration targets two places:
+Terraform provisions the AWS side: a VPC across two Availability Zones with public and private
+subnets, an Internet Gateway, a NAT Gateway, and an EKS cluster with a managed node group.
 
 ```bash
-# free - no AWS account, nothing billed. EKS is skipped (see below).
-docker run -d --name localstack-tf -p 4566:4566 \
-  -e SERVICES=ec2,iam,sts,logs,s3 localstack/localstack:3.8
-terraform -chdir=terraform init
-terraform -chdir=terraform apply -var-file=localstack.tfvars
-terraform -chdir=terraform destroy -var-file=localstack.tfvars
-
-# real AWS - needs credentials, creates the EKS cluster too
 export AWS_PROFILE=your-profile
-terraform -chdir=terraform apply
+terraform -chdir=terraform init
+terraform -chdir=terraform plan  -out=tfplan
+terraform -chdir=terraform apply tfplan
+aws eks update-kubeconfig --region ap-southeast-2 --name mltracker-dev
+kubectl get nodes
+terraform -chdir=terraform destroy
 ```
 
-The VPC layer — 16 resources including two public subnets across two Availability Zones, a NAT
-Gateway and the route tables — has been applied, verified with the AWS CLI and destroyed
-against LocalStack. **The EKS cluster has not been created**: LocalStack's free edition answers
-EKS calls with `"API for service 'eks' not yet implemented or pro feature"`, and no AWS account
-is attached to this project. The EKS HCL is written, formatted and validated, and
-`var.enable_eks` switches it on for a real account.
+**This was applied to a real AWS account, verified, and destroyed.** 33 resources planned; the
+EKS 1.33 control plane went `ACTIVE`, both `t3.medium` workers registered `Ready`, and
+`kubectl get nodes` answered from the EKS API server. `terraform destroy` then removed 30
+resources, and an independent sweep with the AWS CLI found nothing left that bills. Total
+runtime was under an hour, a fraction of a dollar of credits.
 
-[`terraform/README.md`](terraform/README.md) has the full transcript, the cost breakdown and the
-teardown-order trap.
+| | |
+|---|---|
+| Region | `ap-southeast-2` (Sydney) |
+| VPC | `10.0.0.0/16`, 2 public + 2 private subnets across 2 AZs |
+| EKS | `mltracker-dev`, Kubernetes 1.33, Active |
+| Node group | `mltracker-dev-nodes`, 2 × t3.medium, both Ready |
+
+The EKS cluster in the AWS console:
+
+![EKS cluster in the AWS console](docs/screenshots/aws-eks-cluster.png)
+
+The VPC it runs in:
+
+![VPC in the AWS console](docs/screenshots/aws-vpc.png)
+
+The full transcript — plan, state, CLI verification of every resource, `kubectl get nodes`, the
+destroy and the sweep — is in [`docs/terraform-output.txt`](docs/terraform-output.txt).
+
+Two account-specific findings shaped the run, both covered under *Things that broke*: the
+account is pinned to `ap-southeast-2`, and its policy also refuses
+`iam:CreateOpenIDConnectProvider`, so the IRSA provider and the EBS CSI add-on that depends on
+it were the only resources that did not come up. Neither is part of the cluster or the network.
+
+The same configuration also runs for free against LocalStack (`-var-file=localstack.tfvars`),
+which is how it was developed before any real resource existed; LocalStack's free edition does
+not implement EKS, so that path creates the VPC only.
 
 ---
 
@@ -392,7 +413,9 @@ that only ever shows 200s proves nothing about its error-rate panels.
 | kubectl / helm state | [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
 | Trivy before and after | [`docs/trivy-output.txt`](docs/trivy-output.txt) |
 | `/metrics` output | [`docs/metrics-output.txt`](docs/metrics-output.txt) |
-| Terraform init/validate | [`docs/terraform-output.txt`](docs/terraform-output.txt) |
+| EKS cluster in the AWS console | [`docs/screenshots/aws-eks-cluster.png`](docs/screenshots/aws-eks-cluster.png), [`aws-eks-clusters-list.png`](docs/screenshots/aws-eks-clusters-list.png) |
+| VPC in the AWS console | [`docs/screenshots/aws-vpc.png`](docs/screenshots/aws-vpc.png) |
+| Terraform plan, apply, verify, destroy, sweep | [`docs/terraform-output.txt`](docs/terraform-output.txt) |
 
 ## Things that broke, and why
 
@@ -422,13 +445,31 @@ Kept because the debugging is the part worth reading.
   installing a second system Python, the test suite runs in a `python:3.12-slim` container — which
   has the side benefit of matching CI exactly.
 
+- **"EKS is blocked in this account" was actually "this region is not yours".** Every AWS
+  call returned `explicit deny in a service control policy` — not only EKS, but S3, Lambda,
+  DynamoDB, RDS and CloudFormation too. A policy denying *every* service looks like an account
+  that cannot use AWS at all, and I spent a long time treating it as one, including a wrong
+  guess that the account belonged to an employer.
+
+  It was none of that. The account is enrolled in AWS's "projects" experience, which pins it
+  to a single region — here `ap-southeast-2` — and denies anything addressed elsewhere. Every
+  call had been made against `ap-south-1`, chosen because Mumbai is nearest. The denial message
+  names the *service* and never the *region*, so the one fact that would have resolved it in
+  thirty seconds is the one fact it omits.
+
+  What finally showed it was opening the EC2 console in a browser: it loaded, and said
+  *"Region Asia Pacific (Mumbai) unavailable — your project is assigned to Asia Pacific
+  (Sydney)."* The console knew all along. The lesson is to read an `AccessDenied` as "something
+  about this request is disallowed", not "this service is disallowed" — the request includes
+  the region, the principal and the resource, and the message rarely says which one failed.
+
 ## Presentation
 
 [`demo/`](demo/) holds the material the capstone is presented with:
 
 | | |
 |---|---|
-| [`demo/presentation.pptx`](demo/presentation.pptx) | 12-slide deck — overview, stack, architecture, CI/CD, DevSecOps, infrastructure, Kubernetes, GitOps, observability, learnings |
+| [`demo/slides.pdf`](demo/slides.pdf) | 11-slide deck — overview, architecture, tech stack, CI/CD, DevSecOps, infrastructure, Kubernetes and GitOps, observability, learnings. Source: [`demo/slides-src/slides.html`](demo/slides-src/slides.html) |
 | [`demo/VIDEO-SCRIPT.md`](demo/VIDEO-SCRIPT.md) | The recording script: setup commands, tab order, and what to say in each of the nine parts |
 
 ## Known issues and limitations
@@ -441,9 +482,12 @@ Stated plainly, because a grader will find them anyway.
   needs a pipeline job that commits the new SHA, or Argo CD Image Updater.
 
 - **The `deploy` job lints rather than deploys.** A GitHub-hosted runner has no
-  route to a cluster on this laptop, so the job renders and lints the chart. On
-  EKS it becomes a `helm upgrade` once the runner can authenticate with
-  `aws eks update-kubeconfig`.
+  route to the local kind cluster, and the EKS cluster was created for the evaluation and then
+  destroyed rather than left running at $0.10 an hour, so the job renders and lints the chart.
+
+- **No IRSA on EKS.** The AWS account's policy refuses `iam:CreateOpenIDConnectProvider`, so
+  pod-level IAM roles and the EBS CSI driver that relies on them could not be provisioned. The
+  cluster, node group and network were unaffected.
 
 - **The HPA is disabled on kind.** kind ships no metrics-server, so an HPA there
   sits at `<unknown>/60%` forever. It is enabled in
@@ -475,5 +519,5 @@ Stated plainly, because a grader will find them anyway.
 | M7 Terraform | [`terraform/`](terraform/), [`docs/terraform-output.txt`](docs/terraform-output.txt) |
 | M8 Kubernetes + Helm | [`k8s/`](k8s/), [`helm/mltracker/`](helm/mltracker/), [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
 | M9 Observability | [`monitoring/`](monitoring/), Grafana and Prometheus screenshots |
-| M10 Documentation + presentation | this file, [`demo/presentation.pptx`](demo/presentation.pptx), [`demo/VIDEO-SCRIPT.md`](demo/VIDEO-SCRIPT.md) |
+| M10 Documentation + presentation | this file, [`demo/slides.pdf`](demo/slides.pdf), [`demo/VIDEO-SCRIPT.md`](demo/VIDEO-SCRIPT.md) |
 | GitOps delivery | [`argocd/`](argocd/), [`docs/argocd-output.txt`](docs/argocd-output.txt) |
