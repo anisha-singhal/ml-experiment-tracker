@@ -398,24 +398,32 @@ that only ever shows 200s proves nothing about its error-rate panels.
 
 ## Evidence
 
-| What | Where |
-|---|---|
-| App in Docker Compose | [`docs/screenshots/app-dashboard.png`](docs/screenshots/app-dashboard.png) |
-| Green CI/CD pipeline | [`docs/screenshots/github-actions-pipeline.png`](docs/screenshots/github-actions-pipeline.png) |
-| GHCR package, SHA-tagged | [`docs/screenshots/ghcr-package.png`](docs/screenshots/ghcr-package.png) |
-| App through the Kubernetes Ingress | [`docs/screenshots/k8s-app-via-ingress.png`](docs/screenshots/k8s-app-via-ingress.png) |
-| Responsive layout at 430px | [`docs/screenshots/app-responsive-mobile.png`](docs/screenshots/app-responsive-mobile.png) |
-| Argo CD application `Synced` / `Healthy` | [`docs/screenshots/argocd-application-tree.png`](docs/screenshots/argocd-application-tree.png) |
-| Argo CD sync, managed resources, self-heal | [`docs/argocd-output.txt`](docs/argocd-output.txt) |
-| Prometheus targets `UP` | [`docs/screenshots/prometheus-targets.png`](docs/screenshots/prometheus-targets.png) |
-| Grafana dashboard | [`docs/screenshots/grafana-dashboard.png`](docs/screenshots/grafana-dashboard.png) |
-| pytest output | [`docs/pytest-output.txt`](docs/pytest-output.txt) |
-| kubectl / helm state | [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
-| Trivy before and after | [`docs/trivy-output.txt`](docs/trivy-output.txt) |
-| `/metrics` output | [`docs/metrics-output.txt`](docs/metrics-output.txt) |
-| EKS cluster in the AWS console | [`docs/screenshots/aws-eks-cluster.png`](docs/screenshots/aws-eks-cluster.png), [`aws-eks-clusters-list.png`](docs/screenshots/aws-eks-clusters-list.png) |
-| VPC in the AWS console | [`docs/screenshots/aws-vpc.png`](docs/screenshots/aws-vpc.png) |
-| Terraform plan, apply, verify, destroy, sweep | [`docs/terraform-output.txt`](docs/terraform-output.txt) |
+Every screenshot the grading rubric asks for, by module. Terminal captures are rendered from
+real command output, and each one's title bar says where that output came from — a named
+GitHub Actions run, or the local terminal.
+
+| Module | What | Where |
+|---|---|---|
+| M1 | App running in the browser | [`app-dashboard.png`](docs/screenshots/app-dashboard.png), [`app-new-run.png`](docs/screenshots/app-new-run.png) |
+| M1 | Responsive layout at 430px | [`app-responsive-mobile.png`](docs/screenshots/app-responsive-mobile.png) |
+| M2 | `pytest -v`, 17 passed, from CI | [`pytest-output.png`](docs/screenshots/pytest-output.png) · [`docs/pytest-output.txt`](docs/pytest-output.txt) |
+| M3 | Commit history, 30+ commits | [`git-commit-history.png`](docs/screenshots/git-commit-history.png) |
+| M4 | `docker compose up --build` | [`docker-compose-up.png`](docs/screenshots/docker-compose-up.png) |
+| M4 | The app at `localhost:3000` from Compose | [`compose-app-localhost-3000.png`](docs/screenshots/compose-app-localhost-3000.png) |
+| M5 | Green CI/CD pipeline | [`github-actions-pipeline.png`](docs/screenshots/github-actions-pipeline.png) |
+| M5 | GHCR images tagged by commit SHA | [`ghcr-package.png`](docs/screenshots/ghcr-package.png) |
+| M6 | Trivy gate output from a pipeline run | [`trivy-pipeline-output.png`](docs/screenshots/trivy-pipeline-output.png) · [`docs/trivy-output.txt`](docs/trivy-output.txt) |
+| M7 | EKS cluster in the AWS console | [`aws-eks-cluster.png`](docs/screenshots/aws-eks-cluster.png), [`aws-eks-clusters-list.png`](docs/screenshots/aws-eks-clusters-list.png) |
+| M7 | VPC in the AWS console | [`aws-vpc.png`](docs/screenshots/aws-vpc.png) |
+| M7 | Plan, apply, verify, destroy, sweep | [`docs/terraform-output.txt`](docs/terraform-output.txt) |
+| M8 | `kubectl get pods`, `svc`, `ingress` | [`kubectl-pods-svc-ingress.png`](docs/screenshots/kubectl-pods-svc-ingress.png) · [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
+| M8 | `helm upgrade --install` and `helm list` | [`helm-install-and-list.png`](docs/screenshots/helm-install-and-list.png) |
+| M8 | App through the Ingress | [`k8s-app-via-ingress.png`](docs/screenshots/k8s-app-via-ingress.png) |
+| M8 | Argo CD `Synced` / `Healthy`, self-heal | [`argocd-application-tree.png`](docs/screenshots/argocd-application-tree.png) · [`docs/argocd-output.txt`](docs/argocd-output.txt) |
+| M9 | `/metrics` output | [`metrics-endpoint.png`](docs/screenshots/metrics-endpoint.png) · [`docs/metrics-output.txt`](docs/metrics-output.txt) |
+| M9 | Prometheus targets `UP` | [`prometheus-targets.png`](docs/screenshots/prometheus-targets.png) |
+| M9 | Grafana dashboard | [`grafana-dashboard.png`](docs/screenshots/grafana-dashboard.png) |
+| M10 | Slide deck | [`demo/slides.pdf`](demo/slides.pdf) |
 
 ## Things that broke, and why
 
@@ -462,6 +470,15 @@ Kept because the debugging is the part worth reading.
   (Sydney)."* The console knew all along. The lesson is to read an `AccessDenied` as "something
   about this request is disallowed", not "this service is disallowed" — the request includes
   the region, the principal and the resource, and the message rarely says which one failed.
+
+- **A Helm release named `mltracker` was deleted two seconds after it installed.** Installing
+  the chart directly with `helm upgrade --install`, next to the Argo CD deployment, failed with
+  `services "mltracker-mltracker-backend" not found` and pods already `Terminating`. Argo CD
+  tracks the resources it owns by the `app.kubernetes.io/instance` label, and a Helm release
+  stamps that label with the release name — so a release called `mltracker` produced resources
+  Argo CD took to be part of *its* application, absent from Git, and pruned on sight. A release
+  named `mltracker-helm` installs cleanly. The general point: two deployers sharing one tracking
+  label will fight, and the faster one wins.
 
 ## Presentation
 
