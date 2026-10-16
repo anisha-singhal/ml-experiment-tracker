@@ -1,0 +1,66 @@
+# The desired state of this application, as a file.
+#
+# Nobody runs `helm upgrade` against the cluster by hand. Argo CD reads this
+# Application, fetches helm/mltracker at the named revision, renders it, and
+# makes the cluster match. Change a value in Git and the cluster converges;
+# change the cluster by hand and the cluster is put back.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mltracker
+  namespace: argocd
+  finalizers:
+    # Deleting the Application should delete what it created. Without this
+    # finalizer the workloads are orphaned and keep running unmanaged.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/anisha-singhal/ml-experiment-tracker.git
+    targetRevision: main
+    path: helm/mltracker
+    helm:
+      releaseName: mltracker
+      valueFiles:
+        - values.yaml
+        # Holds the pinned image SHAs and the kind-specific ingress host.
+        # This is the file that records which version is deployed.
+        - values-gitops.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-tracker
+
+  syncPolicy:
+    automated:
+      # Converge without being asked. Without this Argo CD only reports drift.
+      selfHeal: true
+      # Remove resources that have been deleted from Git, rather than leaving
+      # them behind as untracked leftovers.
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      # The chart's PostgreSQL StatefulSet owns its PVCs through
+      # volumeClaimTemplates; letting Argo CD prune them on every sync would
+      # throw away the database.
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # The HPA owns backend replica count at runtime, so the live value will
+  # legitimately differ from what the chart renders. Without this, Argo CD
+  # would report the application permanently OutOfSync and selfHeal would
+  # fight the autoscaler.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      name: mltracker-backend
+      namespace: ml-tracker
+      jsonPointers:
+        - /spec/replicas

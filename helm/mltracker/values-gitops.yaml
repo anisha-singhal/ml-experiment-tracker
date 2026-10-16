@@ -1,0 +1,37 @@
+# The values Argo CD deploys from.
+#
+# This file is the deployment record. The image tags below are the exact
+# commit that CI built and published to GHCR, which is why changing the
+# deployed version is a commit rather than a command: edit these two tags,
+# push, and Argo CD converges the cluster onto the new images.
+#
+# Pinned to a full SHA, never :main and never :latest — a moving tag means a
+# pod restart silently changes what is running.
+backend:
+  image:
+    tag: "1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+
+frontend:
+  image:
+    tag: "1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4"
+    pullPolicy: IfNotPresent
+  replicaCount: 2
+
+ingress:
+  enabled: true
+  # The kind cluster maps hostPort 8080 to the ingress controller's port 80,
+  # so localhost is browsable without touching /etc/hosts. A cloud deployment
+  # overrides this with a real DNS name, as values-prod.yaml does.
+  host: localhost
+
+# kind ships no metrics-server, so an HPA here would sit permanently at
+# <unknown>/60%. Enabled in values-prod.yaml, where EKS provides metrics.
+hpa:
+  enabled: false
+
+postgres:
+  persistence:
+    enabled: true
+    size: 1Gi
