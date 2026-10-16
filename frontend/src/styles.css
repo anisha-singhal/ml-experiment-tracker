@@ -407,23 +407,28 @@ body {
 .table tbody tr.is-busy { opacity: 0.45; pointer-events: none; }
 
 .cell-num { text-align: right; }
-.cell-dim { color: var(--text-2); }
+/* Dataset names are hyphenated (Adult-Census, Oxford-Pets) and browsers
+   break at a hyphen, which made those rows two lines tall and undid the
+   shared row height. The wrapper scrolls horizontally if it has to. */
+.cell-dim { color: var(--text-2); white-space: nowrap; }
 .cell-acc { width: 168px; }
 .cell-actions { width: 1%; white-space: nowrap; text-align: right; }
 
 .run {
   display: flex; flex-direction: column; justify-content: center; gap: 1px;
   min-width: 0; max-width: 260px;
-  /* Reserved so a run without notes is exactly as tall as one with them.
-     Otherwise the rows have no shared rhythm down the column. */
-  min-height: 30px;
+  /* Reserved so a run without notes is exactly as tall as one with them:
+     17px name + 1px gap + 15px notes. Measured, not guessed - at 30px the
+     rows still differed by 3px. */
+  min-height: 33px;
 }
 .run__name {
-  font-weight: 550; font-size: 12.5px; letter-spacing: -0.005em;
+  font-weight: 550; font-size: 12.5px; line-height: 17px;
+  letter-spacing: -0.005em;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .run__notes {
-  font-size: 11px; color: var(--text-3);
+  font-size: 11px; line-height: 15px; color: var(--text-3);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
@@ -477,7 +482,14 @@ body {
    There was a 50% tick here. It drew as a black notch straight through the
    fill and read as damage rather than as a scale mark, so it is gone. The
    track itself carries the scale: the unfilled remainder is the axis. */
-.acc { display: flex; flex-direction: column; gap: 5px; }
+.acc,
+.unscored {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 5px;
+  /* Both states reserve the same height, so a scored row and an unscored
+     row are exactly as tall as each other. */
+  min-height: 27px;
+}
 .acc__value { font-size: 12px; color: var(--text-2); }
 .acc__track {
   position: relative;
@@ -497,9 +509,7 @@ body {
    still rank things; it just ranks them by luminance. */
 .acc--best .acc__value { color: var(--text); font-weight: 550; }
 .acc--best .acc__fill { background: var(--text); }
-.unscored {
-  font-size: 11.5px; color: var(--text-3); font-style: italic;
-}
+.unscored { font-size: 11.5px; color: var(--text-3); font-style: italic; }
 
 /* ---- row actions ---- */
 
@@ -796,6 +806,7 @@ select option { background: var(--surface-2); color: var(--text); }
   .run__notes { white-space: normal; }
 
   .cell-num, .cell-acc { text-align: right; width: auto; }
+  .cell-dim { white-space: normal; }
   .acc { flex-direction: row; align-items: center; gap: var(--s2); width: 60%; }
   .acc__track { flex: 1; }
   .acc__value { order: 2; }
