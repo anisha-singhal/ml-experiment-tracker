@@ -1,0 +1,62 @@
+# Fault: the Service selector does not match the Pod labels.
+#
+# Everything looks healthy: the Pods are Running and Ready, the Service exists
+# and has a ClusterIP. But a Service finds its Pods by label, and this one asks
+# for app=lab-frontend while the Pods carry app=lab-web. No matching labels
+# means no endpoints, and no endpoints means every request is refused.
+#
+# Investigate and fix: see troubleshooting/README.md.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-web
+  namespace: ml-tracker-lab
+  labels:
+    app: lab-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lab-web
+  template:
+    metadata:
+      labels:
+        app: lab-web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+      containers:
+        - name: frontend
+          image: ghcr.io/anisha-singhal/ml-experiment-tracker-frontend:28917b4c0a38cd63cb06c9e99f0285de82c102b9
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # nginx resolves the upstream at start-up, so point it at the real
+            # backend in the application namespace.
+            - name: BACKEND_URL
+              value: http://mltracker-mltracker-backend.ml-tracker.svc.cluster.local:8000
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { memory: 128Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lab-web
+  namespace: ml-tracker-lab
+spec:
+  type: ClusterIP
+  selector:
+    app: lab-frontend   # wrong: the Pods are labelled app=lab-web
+  ports:
+    - port: 80
+      targetPort: http

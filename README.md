@@ -88,10 +88,11 @@ a migrated relational schema, validation at the edge, and a UI that works at pho
 ├── helm/mltracker/    Helm chart: deployments, services, ingress, HPA, StatefulSet
 ├── argocd/            Argo CD Application - the deployment, as a file
 ├── k8s/               namespace, kind cluster definition
-├── demo/              presentation deck and recording script
+├── demo/              presentation deck
 ├── terraform/         AWS VPC + EKS
-├── monitoring/        Prometheus values, Grafana dashboard as a ConfigMap
-├── scripts/           test runner, load generator
+├── monitoring/        Prometheus and metrics-server values, Grafana dashboard as a ConfigMap
+├── troubleshooting/   deliberately broken manifests and how to diagnose them
+├── scripts/           test runner, load generator, demo and deploy helpers
 ├── docs/              screenshots and captured command output
 ├── .github/workflows/ CI/CD pipeline
 └── docker-compose.yml
@@ -182,6 +183,48 @@ kubectl port-forward -n monitoring svc/prometheus-grafana 3300:80
 
 Grafana at http://localhost:3300 (`admin` / `admin`), dashboard **ML Experiment Tracker —
 Application**.
+
+### Autoscaling
+
+The backend has a HorizontalPodAutoscaler: 2 to 5 replicas, targeting 70% of its 100m CPU
+request. kind ships no metrics-server, so install one first or the HPA reads `<unknown>`:
+
+```bash
+helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+helm upgrade --install metrics-server metrics-server/metrics-server --version 3.14.0 \
+  -n kube-system -f monitoring/metrics-server-values.yaml
+
+kubectl get hpa -n ml-tracker
+for i in 1 2 3 4 5 6 7 8; do ./scripts/load-test.sh http://localhost:8080 150 & done
+kubectl get hpa -n ml-tracker -w
+```
+
+Under that load the backend went from 2 to 4 to 5 replicas in under a minute:
+
+```
+TARGETS         MINPODS   MAXPODS   REPLICAS
+cpu: 5%/70%     2         5         2
+cpu: 279%/70%   2         5         2
+cpu: 398%/70%   2         5         4
+cpu: 192%/70%   2         5         5
+```
+
+Full run in [`docs/hpa-output.txt`](docs/hpa-output.txt). Argo CD ignores the backend's
+`spec.replicas`, so it never scales the Deployment back down to what Git says.
+
+### Troubleshooting lab
+
+[`troubleshooting/`](troubleshooting/) holds two deliberately broken deployments — an image tag
+that does not exist (`ImagePullBackOff`) and a Service whose selector matches no Pods (Running
+Pods, zero endpoints). Its [README](troubleshooting/README.md) walks through the symptom, the
+commands that find the cause, and the fix; real output from both is in
+[`docs/troubleshooting-output.txt`](docs/troubleshooting-output.txt).
+
+```bash
+kubectl apply -f troubleshooting/namespace.yaml -f troubleshooting/broken-image.yaml
+kubectl apply -f troubleshooting/broken-service.yaml
+kubectl delete namespace ml-tracker-lab        # clean up
+```
 
 ### Infrastructure
 
@@ -423,6 +466,8 @@ GitHub Actions run, or the local terminal.
 | M9 | `/metrics` output | [`metrics-endpoint.png`](docs/screenshots/metrics-endpoint.png) · [`docs/metrics-output.txt`](docs/metrics-output.txt) |
 | M9 | Prometheus targets `UP` | [`prometheus-targets.png`](docs/screenshots/prometheus-targets.png) |
 | M9 | Grafana dashboard | [`grafana-dashboard.png`](docs/screenshots/grafana-dashboard.png) |
+| — | HPA scaling the backend 2 → 5 under load | [`docs/hpa-output.txt`](docs/hpa-output.txt) |
+| — | Troubleshooting lab: broken image, broken Service | [`docs/troubleshooting-output.txt`](docs/troubleshooting-output.txt) |
 | M10 | Slide deck | [`demo/slides.pdf`](demo/slides.pdf) |
 
 ## Things that broke, and why
@@ -505,11 +550,10 @@ Stated plainly, because a grader will find them anyway.
   pod-level IAM roles and the EBS CSI driver that relies on them could not be provisioned. The
   cluster, node group and network were unaffected.
 
-- **The HPA is disabled on kind.** kind ships no metrics-server, so an HPA there
-  sits at `<unknown>/60%` forever. It is enabled in
-  [`values-prod.yaml`](helm/mltracker/values-prod.yaml), and the scaling
-  behaviour was verified separately with metrics-server installed —
-  [`docs/metrics-output.txt`](docs/metrics-output.txt).
+- **kind needs metrics-server installed by hand for the HPA.** It is not part of
+  the chart, because EKS and most managed clusters already run one and a second
+  copy would conflict. `--kubelet-insecure-tls` in its values is for kind's
+  self-signed kubelet certificates only.
 
 - **The PostgreSQL password is a chart default.** `postgres.password` in
   `values.yaml` is a development convenience. A real deployment sets
@@ -528,7 +572,7 @@ Stated plainly, because a grader will find them anyway.
 |---|---|
 | M1 Application | [`backend/app/`](backend/app/), [`frontend/src/`](frontend/src/), [`backend/alembic/versions/`](backend/alembic/versions/) |
 | M2 Testing | [`backend/tests/`](backend/tests/), [`backend/pytest.ini`](backend/pytest.ini), [`docs/pytest-output.txt`](docs/pytest-output.txt) |
-| M3 Git | this repository, 17+ commits, [`.gitignore`](.gitignore) |
+| M3 Git | this repository, 30+ commits, [`.gitignore`](.gitignore) |
 | M4 Docker | [`backend/Dockerfile`](backend/Dockerfile), [`frontend/Dockerfile`](frontend/Dockerfile), [`docker-compose.yml`](docker-compose.yml) |
 | M5 CI/CD | [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml) |
 | M6 DevSecOps | Trivy gate in the workflow, [`docs/trivy-output.txt`](docs/trivy-output.txt) |
@@ -537,3 +581,5 @@ Stated plainly, because a grader will find them anyway.
 | M9 Observability | [`monitoring/`](monitoring/), Grafana and Prometheus screenshots |
 | M10 Documentation + presentation | this file, [`demo/slides.pdf`](demo/slides.pdf) |
 | GitOps delivery | [`argocd/`](argocd/), [`docs/argocd-output.txt`](docs/argocd-output.txt) |
+| Autoscaling | [`templates/hpa.yaml`](helm/mltracker/templates/hpa.yaml), [`monitoring/metrics-server-values.yaml`](monitoring/metrics-server-values.yaml), [`docs/hpa-output.txt`](docs/hpa-output.txt) |
+| Troubleshooting | [`troubleshooting/`](troubleshooting/), [`docs/troubleshooting-output.txt`](docs/troubleshooting-output.txt) |

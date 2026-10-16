@@ -1,0 +1,8 @@
+# The lab runs in its own namespace so nothing here touches the real release,
+# and Argo CD (which owns ml-tracker) never sees or prunes it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ml-tracker-lab
+  labels:
+    app.kubernetes.io/part-of: ml-experiment-tracker

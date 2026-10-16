@@ -1,0 +1,36 @@
+# Fault: the image tag does not exist in GHCR.
+#
+# CI only ever publishes images tagged with a full commit SHA, so a hand-typed
+# or truncated tag is the realistic way this happens. The Pod is scheduled,
+# the kubelet asks the registry for the manifest, gets "not found", and backs
+# off: ErrImagePull, then ImagePullBackOff.
+#
+# Investigate and fix: see troubleshooting/README.md.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lab-backend
+  namespace: ml-tracker-lab
+  labels:
+    app: lab-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: lab-backend
+  template:
+    metadata:
+      labels:
+        app: lab-backend
+    spec:
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: backend
+          # Short SHA. CI tags with the full 40 characters, so this never exists.
+          image: ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4
+          ports:
+            - containerPort: 8000
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { memory: 256Mi }

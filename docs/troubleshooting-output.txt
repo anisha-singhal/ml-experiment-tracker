@@ -1,0 +1,92 @@
+# Troubleshooting lab, run against the kind cluster
+# Captured 2026-10-16 from the local terminal. Manifests in troubleshooting/.
+
+########## 1. Broken image -> ImagePullBackOff ##########
+
+$ kubectl apply -f troubleshooting/namespace.yaml -f troubleshooting/broken-image.yaml
+namespace/ml-tracker-lab created
+deployment.apps/lab-backend created
+
+$ kubectl get pods -n ml-tracker-lab -l app=lab-backend
+NAME                           READY   STATUS             RESTARTS   AGE
+lab-backend-67567bdff6-dg46p   0/1     ImagePullBackOff   0          25s
+
+$ kubectl describe -n ml-tracker-lab pod/lab-backend-67567bdff6-dg46p | sed -n '/Events:/,$p'
+Events:
+  Type     Reason     Age                From               Message
+  ----     ------     ----               ----               -------
+  Normal   Scheduled  25s                default-scheduler  Successfully assigned ml-tracker-lab/lab-backend-67567bdff6-dg46p to mltracker-worker
+  Normal   BackOff    22s                kubelet            Back-off pulling image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4"
+  Warning  Failed     22s                kubelet            Error: ImagePullBackOff
+  Normal   Pulling    10s (x2 over 25s)  kubelet            Pulling image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4"
+  Warning  Failed     9s (x2 over 23s)   kubelet            Failed to pull image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4": failed to resolve reference "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4": ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4: not found
+  Warning  Failed     9s (x2 over 23s)   kubelet            Error: ErrImagePull
+
+$ kubectl get events -n ml-tracker-lab --sort-by=.lastTimestamp --field-selector involvedObject.kind=Pod | tail -6
+25s         Normal    Scheduled   pod/lab-backend-67567bdff6-dg46p   Successfully assigned ml-tracker-lab/lab-backend-67567bdff6-dg46p to mltracker-worker
+22s         Normal    BackOff     pod/lab-backend-67567bdff6-dg46p   Back-off pulling image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4"
+22s         Warning   Failed      pod/lab-backend-67567bdff6-dg46p   Error: ImagePullBackOff
+10s         Normal    Pulling     pod/lab-backend-67567bdff6-dg46p   Pulling image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4"
+9s          Warning   Failed      pod/lab-backend-67567bdff6-dg46p   Failed to pull image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4": rpc error: code = NotFound desc = failed to pull and unpack image "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4": failed to resolve reference "ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4": ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4: not found
+9s          Warning   Failed      pod/lab-backend-67567bdff6-dg46p   Error: ErrImagePull
+
+$ kubectl set image -n ml-tracker-lab deployment/lab-backend backend=ghcr.io/anisha-singhal/ml-experiment-tracker-backend:28917b4c0a38cd63cb06c9e99f0285de82c102b9
+deployment.apps/lab-backend image updated
+
+$ kubectl rollout status -n ml-tracker-lab deployment/lab-backend --timeout=90s
+Waiting for deployment spec update to be observed...
+Waiting for deployment "lab-backend" rollout to finish: 0 out of 1 new replicas have been updated...
+Waiting for deployment "lab-backend" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "lab-backend" rollout to finish: 1 old replicas are pending termination...
+deployment "lab-backend" successfully rolled out
+
+$ kubectl get pods -n ml-tracker-lab -l app=lab-backend
+NAME                           READY   STATUS        RESTARTS   AGE
+lab-backend-67567bdff6-dg46p   0/1     Terminating   0          29s
+lab-backend-865bf4f7d6-q9kk2   1/1     Running       0          3s
+
+
+########## 2. Broken Service -> no endpoints ##########
+
+$ kubectl apply -f troubleshooting/broken-service.yaml
+deployment.apps/lab-web created
+service/lab-web created
+
+$ kubectl get pods -n ml-tracker-lab -l app=lab-web
+NAME                       READY   STATUS    RESTARTS   AGE
+lab-web-8679b485f8-9cvb8   1/1     Running   0          8s
+lab-web-8679b485f8-m5vcd   1/1     Running   0          8s
+
+$ kubectl get svc -n ml-tracker-lab lab-web
+NAME      TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)   AGE
+lab-web   ClusterIP   10.96.6.91   <none>        80/TCP    8s
+
+$ kubectl get endpoints -n ml-tracker-lab lab-web
+Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice
+NAME      ENDPOINTS   AGE
+lab-web   <none>      8s
+
+$ kubectl run probe -n ml-tracker-lab --rm -i --restart=Never --image=curlimages/curl:8.10.1 --quiet -- curl -sS -m 5 -o /dev/null -w '%{http_code}\n' http://lab-web/healthz
+000
+curl: (7) Failed to connect to lab-web port 80 after 2 ms: Could not connect to server
+pod ml-tracker-lab/probe terminated (Error)
+
+$ kubectl get svc -n ml-tracker-lab lab-web -o jsonpath='{.spec.selector}{"\n"}'
+{"app":"lab-frontend"}
+
+$ kubectl get pods -n ml-tracker-lab --show-labels -l app=lab-web
+NAME                       READY   STATUS    RESTARTS   AGE   LABELS
+lab-web-8679b485f8-9cvb8   1/1     Running   0          17s   app=lab-web,pod-template-hash=8679b485f8
+lab-web-8679b485f8-m5vcd   1/1     Running   0          17s   app=lab-web,pod-template-hash=8679b485f8
+
+$ kubectl patch svc -n ml-tracker-lab lab-web -p '{"spec":{"selector":{"app":"lab-web"}}}'
+service/lab-web patched
+
+$ kubectl get endpoints -n ml-tracker-lab lab-web
+Warning: v1 Endpoints is deprecated in v1.33+; use discovery.k8s.io/v1 EndpointSlice
+NAME      ENDPOINTS                           AGE
+lab-web   10.244.1.13:8080,10.244.2.14:8080   20s
+
+$ kubectl run probe -n ml-tracker-lab --rm -i --restart=Never --image=curlimages/curl:8.10.1 --quiet -- curl -sS -m 5 -o /dev/null -w '%{http_code}\n' http://lab-web/healthz
+200
+

@@ -1,0 +1,35 @@
+# Backend HPA scaling on the kind cluster
+#
+# metrics-server installed from monitoring/metrics-server-values.yaml; HPA
+# deployed by Argo CD from values-gitops.yaml (2-5 replicas, 70% of the 100m
+# CPU request). Eight copies of scripts/load-test.sh drive traffic through the
+# Ingress. Captured 2026-10-16 from the local terminal.
+
+$ kubectl get hpa -n ml-tracker
+NAME                          REFERENCE                                TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 8%/70%   2         5         2          47s
+
+$ for i in 1 2 3 4 5 6 7 8; do ./scripts/load-test.sh http://localhost:8080 150 & done
+
+$ kubectl get hpa -n ml-tracker -w    # sampled every 15s
+NAME                          REFERENCE                                TARGETS       MINPODS   MAXPODS   REPLICAS   AGE
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 8%/70%   2         5         2          47s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 5%/70%   2     5     2     62s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 279%/70%   2     5     2     77s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 398%/70%   2     5     4     93s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 192%/70%   2     5     5     108s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 9%/70%   2     5     5     2m3s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 144%/70%   2     5     5     2m19s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 238%/70%   2     5     5     2m34s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 111%/70%   2     5     5     2m49s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 28%/70%   2     5     5     3m4s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 58%/70%   2     5     5     3m20s
+mltracker-mltracker-backend   Deployment/mltracker-mltracker-backend   cpu: 186%/70%   2     5     5     3m35s
+
+$ kubectl get pods -n ml-tracker | grep -E 'NAME|backend'
+NAME                                            READY   STATUS    RESTARTS        AGE
+mltracker-mltracker-backend-cf8697579-5b9mj     1/1     Running   0               2m5s
+mltracker-mltracker-backend-cf8697579-9jts5     1/1     Running   0               3m20s
+mltracker-mltracker-backend-cf8697579-dzp6r     1/1     Running   1 (8m49s ago)   7h6m
+mltracker-mltracker-backend-cf8697579-fqfjc     1/1     Running   0               2m20s
+mltracker-mltracker-backend-cf8697579-xlh66     1/1     Running   0               2m20s
