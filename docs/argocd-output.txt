@@ -1,0 +1,74 @@
+Argo CD — GitOps delivery evidence
+Captured 2026-10-16 07:11:56Z against the kind cluster 'mltracker'.
+
+========================================================================
+$ kubectl get application mltracker -n argocd
+========================================================================
+NAME        SYNC     HEALTH    REVISION
+mltracker   Synced   Healthy   ab397536a90afd3f5772924afb9ae295e5ae50a0
+
+The revision is the commit Argo CD rendered, not a local working copy.
+
+========================================================================
+$ kubectl get application mltracker -n argocd -o jsonpath=... (managed resources)
+========================================================================
+KIND           NAME                                 SYNC       HEALTH
+Secret         mltracker-mltracker-db               Synced     
+Service        mltracker-mltracker-backend          Synced     Healthy
+Service        mltracker-mltracker-frontend         Synced     Healthy
+Service        mltracker-mltracker-postgres         Synced     Healthy
+Deployment     mltracker-mltracker-backend          Synced     Healthy
+Deployment     mltracker-mltracker-frontend         Synced     Healthy
+StatefulSet    mltracker-mltracker-postgres         Synced     Healthy
+Ingress        mltracker-mltracker                  Synced     Healthy
+
+========================================================================
+$ kubectl get pods -n ml-tracker
+========================================================================
+NAME                                           READY   STATUS    RESTARTS   AGE
+mltracker-mltracker-backend-5bc6b858f9-bzrct   1/1     Running   0          4m22s
+mltracker-mltracker-backend-5bc6b858f9-vhlh9   1/1     Running   0          4m22s
+mltracker-mltracker-frontend-dbbd8794b-5v8x8   1/1     Running   0          2m39s
+mltracker-mltracker-frontend-dbbd8794b-zl5xh   1/1     Running   0          4m22s
+mltracker-mltracker-postgres-0                 1/1     Running   0          4m22s
+
+========================================================================
+Images actually running (pinned SHAs from values-gitops.yaml, not :main)
+========================================================================
+  mltracker-mltracker-backend-5bc6b858f9-bzrct
+      ghcr.io/anisha-singhal/ml-experiment-tracker-backend:1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4
+  mltracker-mltracker-backend-5bc6b858f9-vhlh9
+      ghcr.io/anisha-singhal/ml-experiment-tracker-backend:1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4
+  mltracker-mltracker-frontend-dbbd8794b-5v8x8
+      ghcr.io/anisha-singhal/ml-experiment-tracker-frontend:1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4
+  mltracker-mltracker-frontend-dbbd8794b-zl5xh
+      ghcr.io/anisha-singhal/ml-experiment-tracker-frontend:1f9b8bf4408c2ed5aa58e5fe0079a03ec8c3e2e4
+  mltracker-mltracker-postgres-0
+      postgres:16-alpine
+
+========================================================================
+Reachability through the Ingress
+========================================================================
+$ curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+200
+$ curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/experiments
+200
+
+========================================================================
+Self-heal: drift is corrected, not just reported
+========================================================================
+The frontend Deployment is scaled from 2 to 1 by hand. Nothing in Git
+changed, so Argo CD treats the live cluster as wrong and puts it back.
+
+$ kubectl scale deployment mltracker-mltracker-frontend -n ml-tracker --replicas=1
+deployment.apps/mltracker-mltracker-frontend scaled
+
+  07:12:05Z  spec.replicas=1
+  07:12:10Z  spec.replicas=2
+
+  Reverted by Argo CD selfHeal.
+
+The backend Deployment is deliberately exempt from this via
+ignoreDifferences on /spec/replicas: the HPA owns that field at runtime,
+so reconciling it would mean Argo CD and the autoscaler fighting over
+the same number.
