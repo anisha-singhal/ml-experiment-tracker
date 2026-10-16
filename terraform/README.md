@@ -120,7 +120,7 @@ operator believes everything is gone.
 only permitted region:
 
 ```
-$ terraform plan -out=tfplan        # 33 to add
+$ terraform plan -out=tfplan        # Plan: 31 to add
 $ terraform apply tfplan
   EKS mltracker-dev            ACTIVE   1.33
   node group mltracker-dev-nodes ACTIVE   2 x t3.medium

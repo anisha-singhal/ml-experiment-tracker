@@ -198,7 +198,7 @@ kubectl get nodes
 terraform -chdir=terraform destroy
 ```
 
-**This was applied to a real AWS account, verified, and destroyed.** 33 resources planned; the
+**This was applied to a real AWS account, verified, and destroyed.** 31 resources planned, 30 created — the one refusal is the OIDC provider described below; the
 EKS 1.33 control plane went `ACTIVE`, both `t3.medium` workers registered `Ready`, and
 `kubectl get nodes` answered from the EKS API server. `terraform destroy` then removed 30
 resources, and an independent sweep with the AWS CLI found nothing left that bills. Total
@@ -487,7 +487,6 @@ Kept because the debugging is the part worth reading.
 | | |
 |---|---|
 | [`demo/slides.pdf`](demo/slides.pdf) | 11-slide deck — overview, architecture, tech stack, CI/CD, DevSecOps, infrastructure, Kubernetes and GitOps, observability, learnings. Source: [`demo/slides-src/slides.html`](demo/slides-src/slides.html) |
-| [`demo/VIDEO-SCRIPT.md`](demo/VIDEO-SCRIPT.md) | The recording script: setup commands, tab order, and what to say in each of the nine parts |
 
 ## Known issues and limitations
 
@@ -536,5 +535,5 @@ Stated plainly, because a grader will find them anyway.
 | M7 Terraform | [`terraform/`](terraform/), [`docs/terraform-output.txt`](docs/terraform-output.txt) |
 | M8 Kubernetes + Helm | [`k8s/`](k8s/), [`helm/mltracker/`](helm/mltracker/), [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
 | M9 Observability | [`monitoring/`](monitoring/), Grafana and Prometheus screenshots |
-| M10 Documentation + presentation | this file, [`demo/slides.pdf`](demo/slides.pdf), [`demo/VIDEO-SCRIPT.md`](demo/VIDEO-SCRIPT.md) |
+| M10 Documentation + presentation | this file, [`demo/slides.pdf`](demo/slides.pdf) |
 | GitOps delivery | [`argocd/`](argocd/), [`docs/argocd-output.txt`](docs/argocd-output.txt) |
