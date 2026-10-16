@@ -35,3 +35,10 @@ postgres:
   persistence:
     enabled: true
     size: 1Gi
+
+# kube-prometheus-stack is installed in this cluster, so the ServiceMonitor
+# CRD exists and Prometheus can be told to scrape the backend. Off in
+# values.yaml, because applying a ServiceMonitor to a cluster without the
+# CRD fails the whole sync.
+serviceMonitor:
+  enabled: true
