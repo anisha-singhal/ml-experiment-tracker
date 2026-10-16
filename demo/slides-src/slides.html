@@ -70,7 +70,6 @@
   .win {
     border: 1px solid var(--line-2); border-radius: 12px; overflow: hidden;
     background: var(--surface);
-    box-shadow: 0 40px 90px -30px rgba(0, 0, 0, 0.9);
     display: flex; flex-direction: column;
   }
   .win .bar {
@@ -88,6 +87,14 @@
   .win.nochrome { align-self: flex-start; }
   .win.nochrome .shot { flex: none; }
   .win.nochrome img { height: auto; margin-top: -4.4%; }
+
+  .device { position: relative; flex: 1; min-width: 0; }
+  .device > .win { position: absolute; inset: 0 150px 70px 0; }
+  .phone {
+    position: absolute; right: 0; bottom: 0; width: 250px;
+    padding: 9px; border: 1px solid #3a3a42; border-radius: 34px; background: #0b0b0d;
+  }
+  .phone img { display: block; width: 100%; border-radius: 26px; }
 
   /* ---------- lists of facts ---------- */
   .facts { list-style: none; margin: 0; padding: 0; }
@@ -247,9 +254,12 @@
         <div><b>8</b><span>Grafana panels</span></div>
       </div>
     </div>
-    <div class="win" style="flex: 1;">
-      <div class="bar"><i></i><i></i><i></i><span>localhost:8080</span></div>
-      <div class="shot"><img src="../../docs/screenshots/k8s-app-via-ingress.png" alt=""></div>
+    <div class="device">
+      <div class="win">
+        <div class="bar"><i></i><i></i><i></i><span>localhost:8080 — logging a new run</span></div>
+        <div class="shot"><img src="../../docs/screenshots/app-new-run.png" alt=""></div>
+      </div>
+      <div class="phone"><img src="../../docs/screenshots/app-responsive-mobile.png" alt=""></div>
     </div>
   </div>
   <div class="foot"><span>FastAPI · PostgreSQL · React</span><span>02</span></div>
