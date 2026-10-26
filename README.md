@@ -468,6 +468,7 @@ GitHub Actions run, or the local terminal.
 | M9 | Grafana dashboard | [`grafana-dashboard.png`](docs/screenshots/grafana-dashboard.png) |
 | — | HPA scaling the backend 2 → 5 under load | [`docs/hpa-output.txt`](docs/hpa-output.txt) |
 | — | Troubleshooting lab: broken image, broken Service | [`docs/troubleshooting-output.txt`](docs/troubleshooting-output.txt) |
+| M10 | Recorded walkthrough, including the live commit → pipeline → deployment demo | [`demo/presentation.mp4`](demo/presentation.mp4) |
 | M10 | Slide deck | [`demo/slides.pdf`](demo/slides.pdf) |
 
 ## Things that broke, and why
@@ -531,6 +532,7 @@ Kept because the debugging is the part worth reading.
 
 | | |
 |---|---|
+| [`demo/presentation.mp4`](demo/presentation.mp4) | Recorded walkthrough, 26 minutes: slides, then a live change committed, pushed through the pipeline and deployed by Argo CD, followed by Kubernetes, Helm and Ingress, autoscaling, Terraform on AWS, Prometheus and Grafana, and a live troubleshooting exercise |
 | [`demo/slides.pdf`](demo/slides.pdf) | 11-slide deck — overview, architecture, tech stack, CI/CD, DevSecOps, infrastructure, Kubernetes and GitOps, observability, learnings. Source: [`demo/slides-src/slides.html`](demo/slides-src/slides.html) |
 
 ## Known issues and limitations
@@ -579,7 +581,7 @@ Stated plainly, because a grader will find them anyway.
 | M7 Terraform | [`terraform/`](terraform/), [`docs/terraform-output.txt`](docs/terraform-output.txt) |
 | M8 Kubernetes + Helm | [`k8s/`](k8s/), [`helm/mltracker/`](helm/mltracker/), [`docs/kubectl-output.txt`](docs/kubectl-output.txt) |
 | M9 Observability | [`monitoring/`](monitoring/), Grafana and Prometheus screenshots |
-| M10 Documentation + presentation | this file, [`demo/slides.pdf`](demo/slides.pdf) |
+| M10 Documentation + presentation | this file, [`demo/presentation.mp4`](demo/presentation.mp4), [`demo/slides.pdf`](demo/slides.pdf) |
 | GitOps delivery | [`argocd/`](argocd/), [`docs/argocd-output.txt`](docs/argocd-output.txt) |
 | Autoscaling | [`templates/hpa.yaml`](helm/mltracker/templates/hpa.yaml), [`monitoring/metrics-server-values.yaml`](monitoring/metrics-server-values.yaml), [`docs/hpa-output.txt`](docs/hpa-output.txt) |
 | Troubleshooting | [`troubleshooting/`](troubleshooting/), [`docs/troubleshooting-output.txt`](docs/troubleshooting-output.txt) |
