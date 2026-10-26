@@ -490,7 +490,7 @@ function App() {
         <header className="topbar">
           <div className="topbar__title">
             <h1>Training runs</h1>
-            <p>Every experiment, its configuration and its result.</p>
+            <p>Every experiment, its configuration and its result — deployed by Argo CD.</p>
           </div>
           <button className="btn btn--primary" onClick={() => setModalOpen(true)}>
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
